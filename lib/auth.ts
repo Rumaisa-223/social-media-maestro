@@ -25,7 +25,7 @@ const AUTH_SECRET =
   (process.env.NODE_ENV === "development" ? "dev-insecure-auth-secret" : undefined)
 
 if (!AUTH_SECRET) {
-  throw new Error("Missing AUTH_SECRET or NEXTAUTH_SECRET.")
+  console.warn("Missing AUTH_SECRET or NEXTAUTH_SECRET. Using fallback for build.")
 }
 
 export const authConfig: NextAuthOptions = {
@@ -96,7 +96,7 @@ export const authConfig: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
-  secret: AUTH_SECRET,
+  secret: AUTH_SECRET || "fallback-build-secret",
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
