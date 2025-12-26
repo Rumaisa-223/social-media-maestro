@@ -2,6 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // output: 'export', // ❌ comment ya remove kar do
+
   images: {
     remotePatterns: [
       {
@@ -14,16 +16,16 @@ const nextConfig = {
   },
 
   eslint: {
-    ignoreDuringBuilds: true, // 🚀 ESLint errors ko ignore karega
+    ignoreDuringBuilds: true,
   },
 
   typescript: {
-    ignoreBuildErrors: true, // 🚀 TypeScript errors ignore karega
+    ignoreBuildErrors: true,
   },
 
   experimental: {
-    serverActions: {}, // ✅ boolean ke bajaye object
-    typedRoutes: false, // 🚀 route params wali strict typing hata dega
+    serverActions: {},
+    typedRoutes: false,
   },
 };
 

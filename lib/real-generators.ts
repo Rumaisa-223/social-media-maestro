@@ -4,54 +4,79 @@ import { templateDataset, type Template } from "./template-dataset"
 import { TemplateGenerator } from "./template-generator"
 
 /* 0️⃣  UTIL ------------------------------------------------------ */
-async function ollamaGenerate(prompt: string, model = "tinyllama"): Promise<string> {
+async function ollamaGenerate(prompt: string): Promise<string> {
   try {
-    const res = await fetch("/api/ollama", {
+    const res = await fetch("http://localhost:11434/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, model }),
+      body: JSON.stringify({ model: "tinyllama", prompt, stream: false }),
     })
-
-    if (!res.ok) {
-      console.warn("Ollama API not available, using fallback")
-      return generateFallbackText(prompt)
-    }
-
-    const data = await res.json()
-    return typeof data === "string" ? data : data.response || generateFallbackText(prompt)
-  } catch (error) {
-    console.warn("Ollama generation failed, using fallback:", error)
+    if (!res.ok) throw new Error("ollama offline")
+    const json = await res.json().catch(() => ({} as any))
+    const text = (json as any)?.response || ""
+    return text.trim() || generateFallbackText(prompt)
+  } catch {
     return generateFallbackText(prompt)
   }
 }
 
 function generateFallbackText(prompt: string): string {
-  const templates = [
-    `🌟 Exciting news about ${prompt}! This is going to be amazing. #innovation #exciting`,
-    `✨ Check out this incredible ${prompt}! You won't believe what's possible. #amazing #trending`,
-    `🚀 Ready to explore ${prompt}? Let's dive into something extraordinary! #explore #discover`,
-    `💫 Here's something special about ${prompt} that will inspire you today! #inspiration #motivation`,
-    `🎯 Focus on ${prompt} and watch the magic happen! #focus #success`,
+  const bank = [
+    "Calmness over chaos",
+    "Always classy, never trashy",
+    "Flawless",
+    "Independent",
+    "Quiet luxury",
+    "Grace over noise",
+    "Soft power",
+    "Own your aura",
+    "Simply iconic",
+    "Elegance in motion",
   ]
-  return templates[Math.floor(Math.random() * templates.length)]
+  return bank[Math.floor(Math.random() * bank.length)]
 }
 
 /* 1️⃣  CAPTION --------------------------------------------------- */
-export async function generateText(prompt: string, tone = "friendly"): Promise<string> {
-  const fullPrompt = `Write a short social-media caption for: ${prompt}.
-Tone: ${tone}. Max 2 sentences, include emoji & 2 hashtags.`
+export async function generateText(prompt: string, tone = "classy"): Promise<string> {
+  const fullPrompt = `Generate one short, classy, confident Instagram caption for: ${prompt}. Requirements: 1–6 words, minimal, elegant, punchy, no hashtags, no emojis, no storytelling. Themes: self-confidence, calmness, independence, elegance, positivity. Examples: Calmness over chaos; Always classy, never trashy; Flawless; Independent. Return only the caption text.`;
   return ollamaGenerate(fullPrompt)
 }
 
+
 /* 2️⃣  HASHTAGS -------------------------------------------------- */
 export async function generateHashtags(prompt: string): Promise<string[]> {
-  const fullPrompt = `Return 12 high-engagement hashtags for: ${prompt}.
-Output only the hashtags separated by commas.`
+  const fullPrompt = `Return exactly 12 Instagram hashtags relevant to: ${prompt}. Output only hashtags, comma-separated, no commentary.`
   const raw = await ollamaGenerate(fullPrompt)
-  return raw
-    .split(",")
-    .map((h) => h.trim())
-    .filter(Boolean)
+  const found = raw.match(/#[A-Za-z0-9_]+/g) || []
+  const cleanSet = new Set<string>()
+  const pushTag = (t: string) => {
+    const x = t.replace(/^[#\s]+/, "").replace(/[^a-zA-Z0-9]+/g, "").toLowerCase()
+    if (!x) return
+    const tag = `#${x}`
+    if (tag.length <= 30) cleanSet.add(tag)
+  }
+  found.forEach(pushTag)
+  if (cleanSet.size < 12) {
+    const txt = (prompt || "").toLowerCase()
+    const words = (txt.match(/[a-z0-9]+/g) || []).filter(
+      (w) => !["a","an","the","and","or","of","for","to","in","on","at","is","are","be","am","was","were","this","that","these","those","with","by","from","about","into","over","under","up","down"].includes(w) && w.length >= 3,
+    )
+    const uniq = Array.from(new Set(words)).slice(0, 6)
+    uniq.forEach((w) => pushTag(`#${w}`))
+    if (/water|ocean|river|lake|hydro|drink/i.test(txt)) {
+      ["#waterforall","#watersustainability","#cleanwater","#savetheearth","#ecofriendly"].forEach(pushTag)
+    }
+    if (/earth|planet|climate|green|eco|sustain/i.test(txt)) {
+      ["#saveourearth","#sustainablefuture","#planet","#zerowaste","#reusable"].forEach(pushTag)
+    }
+    if (/fashion|style|classy|elegant|luxury|chic|minimal/i.test(txt)) {
+      ["#classy","#elegance","#quietluxury","#chic","#minimal","#softpower","#grace"].forEach(pushTag)
+    }
+    if (/new\s?year|202[0-9]/i.test(txt)) {
+      ["#newyear","#newyeargoals","#goodenergy","#freshstart"].forEach(pushTag)
+    }
+  }
+  return Array.from(cleanSet).slice(0, 12)
 }
 
 /* 3️⃣  IMAGE ----------------------------------------------------- */

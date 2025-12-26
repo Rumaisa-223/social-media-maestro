@@ -1,61 +1,45 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
-const data = [
-  {
-    date: "Jan",
-    instagram: 120,
-    twitter: 220,
-    facebook: 150,
-    linkedin: 320,
-  },
-  {
-    date: "Feb",
-    instagram: 132,
-    twitter: 182,
-    facebook: 232,
-    linkedin: 332,
-  },
-  {
-    date: "Mar",
-    instagram: 101,
-    twitter: 191,
-    facebook: 201,
-    linkedin: 301,
-  },
-  {
-    date: "Apr",
-    instagram: 134,
-    twitter: 234,
-    facebook: 154,
-    linkedin: 334,
-  },
-  {
-    date: "May",
-    instagram: 90,
-    twitter: 290,
-    facebook: 190,
-    linkedin: 390,
-  },
-  {
-    date: "Jun",
-    instagram: 230,
-    twitter: 330,
-    facebook: 330,
-    linkedin: 330,
-  },
-  {
-    date: "Jul",
-    instagram: 210,
-    twitter: 310,
-    facebook: 410,
-    linkedin: 320,
-  },
-]
-
 export function OverviewChart() {
+  const [data, setData] = useState<any[]>([
+    { date: "Jan", instagram: 120, twitter: 220, facebook: 150 },
+    { date: "Feb", instagram: 132, twitter: 182, facebook: 232 },
+    { date: "Mar", instagram: 101, twitter: 191, facebook: 201 },
+    { date: "Apr", instagram: 134, twitter: 234, facebook: 154 },
+    { date: "May", instagram: 90, twitter: 290, facebook: 190 },
+    { date: "Jun", instagram: 230, twitter: 330, facebook: 330 },
+    { date: "Jul", instagram: 210, twitter: 310, facebook: 410 },
+  ])
+  useEffect(() => {
+    let mounted = true
+    fetch("/api/analytics").then(async (r) => {
+      const d = await r.json()
+      if (!mounted) return
+      const s = d?.series || {}
+      const platforms = ["instagram", "twitter", "facebook"]
+      const dateSet = new Set<string>()
+      platforms.forEach((p) => {
+        (s[p] || []).forEach((e: any) => dateSet.add(String(e.date)))
+      })
+      const dates = Array.from(dateSet).sort()
+      if (dates.length) {
+        const rows = dates.map((date) => {
+          const row: any = { date }
+          platforms.forEach((p) => {
+            const found = (s[p] || []).find((e: any) => e.date === date)
+            row[p] = Number(found?.value || 0)
+          })
+          return row
+        })
+        setData(rows)
+      }
+    }).catch(() => {})
+    return () => { mounted = false }
+  }, [])
   return (
     <ChartContainer
       config={{
@@ -70,10 +54,6 @@ export function OverviewChart() {
         facebook: {
           label: "Facebook",
           color: "hsl(var(--chart-3))",
-        },
-        linkedin: {
-          label: "LinkedIn",
-          color: "hsl(var(--chart-4))",
         },
       }}
       className="h-[300px]"
@@ -98,7 +78,6 @@ export function OverviewChart() {
           <Line type="monotone" dataKey="instagram" stroke="var(--color-instagram)" strokeWidth={2} dot={false} />
           <Line type="monotone" dataKey="twitter" stroke="var(--color-twitter)" strokeWidth={2} dot={false} />
           <Line type="monotone" dataKey="facebook" stroke="var(--color-facebook)" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="linkedin" stroke="var(--color-linkedin)" strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </ChartContainer>

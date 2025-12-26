@@ -1,254 +1,333 @@
-"use client"
+"use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Facebook, Instagram, Linkedin, RefreshCw, Twitter, AlertTriangle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Facebook,
+  Instagram,
+  X,
+  RefreshCw,
+  AlertTriangle,
+  Save,
+  Globe,
+  Radio,
+} from "lucide-react";
+import { useContentStore } from "@/lib/content-store";
+import { useOnboarding } from "@/components/onboarding/onboarding-context";
+import { toast } from "@/components/ui/use-toast";
 
-interface PlatformWarning {
-  platform: string;
-  issue: string;
-}
+// Allows platform selection and content editing, syncing with onboarding-context and content-store.
+// Ensures selected platforms are passed to schedule-post.tsx for display and posting.
 
-export function PreviewPost() {
-  const [warnings, setWarnings] = useState<PlatformWarning[]>([
-    { platform: "instagram", issue: "Image ratio (16:9) not optimal for Instagram (use 4:5)." },
+export default function PreviewPost() {
+  const { selectedPlatforms, setSelectedPlatforms, setStep } = useOnboarding();
+  const { selectedAssets, setSelectedAssets } = useContentStore();
+  const [warnings] = useState([
+    {
+      platform: "instagram",
+      issue: "Image ratio (16:9) not optimal for Instagram (use 4:5).",
+    },
   ]);
-  const [predictions, setPredictions] = useState({
+  const [predictions] = useState({
     instagram: { likes: 1400, shares: 92 },
     facebook: { likes: 1000, shares: 50 },
     twitter: { likes: 800, retweets: 120, replies: 50 },
-    linkedin: { reactions: 600, comments: 30 },
+    mastodon: { boosts: 80, favorites: 200 },
+    bluesky: { likes: 300, reposts: 40 },
   });
+  const [tempCaption, setTempCaption] = useState(selectedAssets.caption || "");
+  const [tempHashtags, setTempHashtags] = useState(selectedAssets.hashtags?.join(" ") || "");
+  const [mediaUrl, setMediaUrl] = useState<string | null>(
+    selectedAssets.video || selectedAssets.images || selectedAssets.carousel?.[0] || selectedAssets.story?.[0] || null
+  );
+  const [mediaType, setMediaType] = useState<"video" | "image" | "carousel" | "story" | null>(
+    selectedAssets.video ? "video" : selectedAssets.images ? "image" : selectedAssets.carousel?.length ? "carousel" : selectedAssets.story?.length ? "story" : null
+  );
+
+  const handlePlatformChange = (platform: keyof typeof selectedPlatforms) => {
+    setSelectedPlatforms({
+      ...selectedPlatforms,
+      [platform]: !selectedPlatforms[platform],
+    });
+  };
+
+  const handleSave = () => {
+    const hashtagArray = tempHashtags
+      .trim()
+      .split(/\s+/)
+      .map((tag) => tag.replace(/^#/, ""));
+    const selectedCount = Object.values(selectedPlatforms).filter(Boolean).length;
+
+    if (selectedCount === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one platform.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!tempCaption && !hashtagArray.length && !mediaUrl) {
+      toast({
+        title: "Error",
+        description: "Please provide a caption, hashtags, or media.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedAssets({
+      caption: tempCaption.trim() || "",
+      hashtags: hashtagArray.length > 0 ? hashtagArray : [],
+      video: mediaType === "video" ? mediaUrl ?? undefined : undefined,
+      images: mediaType === "image" ? mediaUrl ?? undefined : undefined,
+      carousel: mediaType === "carousel" ? (mediaUrl ? [mediaUrl] : []) : [],
+      story: mediaType === "story" ? (mediaUrl ? [mediaUrl] : []) : [],
+    });
+
+    toast({ title: "Success", description: "Content saved! Proceeding to scheduling." });
+    setStep(5);
+  };
+
+  const getPlatformIcon = (platform: string) => {
+    switch (platform) {
+      case "instagram": return <Instagram className="h-5 w-5" />;
+      case "facebook": return <Facebook className="h-5 w-5" />;
+      case "twitter": return <X className="h-5 w-5" />;
+      case "mastodon": return <Radio className="h-5 w-5" />;
+      case "bluesky": return <Globe className="h-5 w-5" />;
+      default: return null;
+    }
+  };
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">Preview Post</h2>
-      <p className="text-muted-foreground mb-6">See how your post will look on different platforms.</p>
-      {warnings.length > 0 && (
-        <Card className="mb-4 bg-yellow-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              <p className="text-sm text-yellow-800">
-                {warnings.map((w) => `${w.platform}: ${w.issue}`).join(", ")}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <p className="text-sm">Predicted Engagement:</p>
-          <p className="text-sm text-muted-foreground">
-            Instagram: {predictions.instagram.shares} shares
-            <br />
-            Facebook: {predictions.facebook.likes} likes, {predictions.facebook.shares} shares
-            <br />
-            Twitter: {predictions.twitter.likes} likes, {predictions.twitter.retweets} retweets, {predictions.twitter.replies} replies
-            <br />
-            LinkedIn: {predictions.linkedin.reactions} reactions, {predictions.linkedin.comments} comments
-          </p>
+    <div className="container mx-auto p-6 max-w-4xl rounded-xl shadow-lg border-2 border-purple-300">
+      <h2 className="text-3xl font-bold mb-4 text-gray-800">Create and Preview Post</h2>
+      <p className="text-muted-foreground mb-6 text-gray-600">
+        Select platforms, edit content, and preview how your post will look.
+      </p>
+
+      <Card className="mb-6 shadow-md">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold text-gray-800">Select Platforms</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            {["facebook", "twitter", "instagram", "mastodon", "bluesky"].map((platform) => (
+              <motion.div
+                key={platform}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center space-x-2"
+              >
+                <Checkbox
+                  id={platform}
+                  checked={selectedPlatforms[platform as keyof typeof selectedPlatforms]}
+                  onCheckedChange={() => handlePlatformChange(platform as keyof typeof selectedPlatforms)}
+                />
+                <Label htmlFor={platform} className="flex items-center text-sm font-medium text-gray-700">
+                  {getPlatformIcon(platform)}
+                  <span className="ml-2">{platform.charAt(0).toUpperCase() + platform.slice(1)}</span>
+                </Label>
+              </motion.div>
+            ))}
+          </div>
         </CardContent>
       </Card>
-      <Tabs defaultValue="instagram">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="instagram" className="flex items-center gap-2">
-            <Instagram className="h-4 w-4" />
-            <span>Instagram</span>
-          </TabsTrigger>
-          <TabsTrigger value="facebook" className="flex items-center gap-2">
-            <Facebook className="h-4 w-4" />
-            <span>Facebook</span>
-          </TabsTrigger>
-          <TabsTrigger value="twitter" className="flex items-center gap-2">
-            <Twitter className="h-4 w-4" />
-            <span>Twitter</span>
-          </TabsTrigger>
-          <TabsTrigger value="linkedin" className="flex items-center gap-2">
-            <Linkedin className="h-4 w-4" />
-            <span>LinkedIn</span>
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="instagram" className="mt-4">
-          <Card className="max-w-md mx-auto">
-            <CardContent className="p-0">
-              <div className="p-3 border-b flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gray-200"></div>
-                <div>
-                  <p className="text-sm font-medium">your_brand</p>
-                </div>
-              </div>
-              <div>
-                <img src="/placeholder.svg?height=400&width=400" alt="Post preview" className="w-full aspect-square object-cover" />
-              </div>
-              <div className="p-3">
-                <div className="flex gap-4 mb-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-heart"
-                  >
-                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                  </svg>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-message-circle"
-                  >
-                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                  </svg>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-send"
-                  >
-                    <path d="M22 2-7 20-4-9-9-4Z" />
-                    <path d="M22 2 11 13" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium mb-1">your_brand</p>
-                <p className="text-sm">
-                  ✨ SUMMER SALE ALERT! ✨<br />
-                  <br />
-                  Beat the heat with our refreshing skincare collection – now 30% OFF this weekend only! 🌞<br />
-                  <br />
-                  Our dermatologist-approved formulas will keep your skin glowing all summer long. Stock up on your favorites or try something new!
-                  <br />
-                  <br />
-                  Shop now through Sunday at midnight. Link in bio.
+
+      {warnings.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-6"
+        >
+          <Card className="bg-yellow-50 border-yellow-200 shadow-sm relative z-10">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                <p className="text-sm text-yellow-800">
+                  {warnings.map((w, i) => (
+                    <span key={i}>
+                      {w.platform.charAt(0).toUpperCase() + w.platform.slice(1)}: {w.issue}
+                      {i < warnings.length - 1 && <br />}
+                    </span>
+                  ))}
                 </p>
-                <p className="text-sm text-blue-500 mt-1">#SummerSkincare #WeekendSale #SkincareSale #SummerGlow</p>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-        <TabsContent value="facebook" className="mt-4">
-          <Card className="max-w-md mx-auto">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gray-200"></div>
-                <div>
-                  <p className="text-sm font-medium">Your Brand</p>
-                  <p className="text-xs text-muted-foreground">Just now</p>
-                </div>
+        </motion.div>
+      )}
+
+      <Card className="mb-6 shadow-md">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold text-gray-800">Edit Content</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="text-sm font-medium text-gray-700">Caption</Label>
+            <Textarea
+              value={tempCaption}
+              onChange={(e) => setTempCaption(e.target.value)}
+              placeholder="Write your caption..."
+              className="mt-2 w-full rounded-lg"
+            />
+          </div>
+          <div>
+            <Label className="text-sm font-medium text-gray-700">Hashtags</Label>
+            <Input
+              value={tempHashtags}
+              onChange={(e) => setTempHashtags(e.target.value)}
+              placeholder="#hashtag1 #hashtag2"
+              className="mt-2 w-full rounded-lg"
+            />
+          </div>
+          <div>
+            <Label className="text-sm font-medium text-gray-700">Media</Label>
+            <Input
+              type="text"
+              value={mediaUrl || ""}
+              onChange={(e) => setMediaUrl(e.target.value || null)}
+              placeholder="Enter media URL (image or video)"
+              className="mt-2 w-full rounded-lg"
+            />
+            <Tabs defaultValue={mediaType || "image"} className="mt-2">
+              <TabsList>
+                <TabsTrigger value="image">Image</TabsTrigger>
+                <TabsTrigger value="video">Video</TabsTrigger>
+                <TabsTrigger value="carousel">Carousel</TabsTrigger>
+                <TabsTrigger value="story">Story</TabsTrigger>
+              </TabsList>
+              <TabsContent value={mediaType || "image"} />
+            </Tabs>
+            {mediaUrl && (
+              <div className="mt-4">
+                {mediaType === "video" ? (
+                  <video src={mediaUrl} controls className="w-full rounded-lg max-h-64 object-cover" />
+                ) : (
+                  <img src={mediaUrl} alt="Preview" className="w-full rounded-lg max-h-64 object-cover" />
+                )}
               </div>
-              <p className="text-sm mb-3">
-                ✨ SUMMER SALE ALERT! ✨<br />
-                <br />
-                Beat the heat with our refreshing skincare collection – now 30% OFF this weekend only! 🌞<br />
-                <br />
-                Our dermatologist-approved formulas will keep your skin glowing all summer long. Stock up on your favorites or try something new!
-                <br />
-                <br />
-                Shop now through Sunday at midnight.
-              </p>
-              <div className="rounded-lg overflow-hidden mb-3">
-                <img src="/placeholder.svg?height=300&width=500" alt="Post preview" className="w-full object-cover" />
-              </div>
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{predictions.facebook.likes} Likes</span>
-                <span>{predictions.facebook.shares} Shares</span>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="twitter" className="mt-4">
-          <Card className="max-w-md mx-auto">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gray-200"></div>
-                <div>
-                  <div className="flex items-center gap-1">
-                    <p className="text-sm font-medium">Your Brand</p>
-                    <p className="text-xs text-muted-foreground">@your_brand · Just now</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="instagram" className="w-full mb-6">
+        <TabsList className="grid w-full grid-cols-5 mb-6 bg-gray-200 rounded-lg p-1">
+          {(["instagram", "facebook", "twitter", "mastodon", "bluesky"] as const).map((platform) => (
+            <TabsTrigger
+              key={platform}
+              value={platform}
+              className="flex items-center gap-2 text-sm font-medium"
+              disabled={!selectedPlatforms[platform as keyof typeof selectedPlatforms]}
+            >
+              {getPlatformIcon(platform)}
+              {platform.charAt(0).toUpperCase() + platform.slice(1)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {(["instagram", "facebook", "twitter", "mastodon", "bluesky"] as const).map((platform) => (
+          <TabsContent key={platform} value={platform}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="shadow-md">
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <p className="text-gray-800 font-medium">{tempCaption || "No caption"}</p>
+                    <p className="text-blue-500 text-sm">{tempHashtags || "No hashtags"}</p>
+                    {mediaUrl ? (
+                      mediaType === "video" ? (
+                        <video src={mediaUrl} controls className="w-full object-cover rounded-lg max-h-96" />
+                      ) : (
+                        <img src={mediaUrl} alt="Post preview" className="w-full object-cover rounded-lg max-h-96" />
+                      )
+                    ) : (
+                      <img
+                        src="/placeholder.svg?height=300&width=500"
+                        alt="Post preview"
+                        className="w-full object-cover rounded-lg max-h-96"
+                      />
+                    )}
+                    <div className="flex justify-between text-sm text-gray-500 mt-4">
+                      {platform === "twitter" && (
+                        <>
+                          <span>{predictions.twitter.likes} Likes</span>
+                          <span>{predictions.twitter.retweets} Retweets</span>
+                          <span>{predictions.twitter.replies} Replies</span>
+                        </>
+                      )}
+                      {platform === "instagram" && (
+                        <>
+                          <span>{predictions.instagram.likes} Likes</span>
+                          <span>{predictions.instagram.shares} Shares</span>
+                        </>
+                      )}
+                      {platform === "facebook" && (
+                        <>
+                          <span>{predictions.facebook.likes} Likes</span>
+                          <span>{predictions.facebook.shares} Shares</span>
+                        </>
+                      )}
+                      {platform === "mastodon" && (
+                        <>
+                          <span>{predictions.mastodon.boosts} Boosts</span>
+                          <span>{predictions.mastodon.favorites} Favorites</span>
+                        </>
+                      )}
+                      {platform === "bluesky" && (
+                        <>
+                          <span>{predictions.bluesky.likes} Likes</span>
+                          <span>{predictions.bluesky.reposts} Reposts</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm mt-1">
-                    ✨ SUMMER SALE ALERT! ✨<br />
-                    <br />
-                    Beat the heat with our refreshing skincare collection – now 30% OFF this weekend only! 🌞<br />
-                    <br />
-                    Shop now through Sunday at midnight.
-                    <br />
-                    <br />
-                    #SummerSkincare #WeekendSale
-                  </p>
-                  <div className="rounded-lg overflow-hidden mt-3">
-                    <img src="/placeholder.svg?height=250&width=450" alt="Post preview" className="w-full object-cover" />
-                  </div>
-                  <div className="flex gap-6 mt-3 text-sm text-muted-foreground">
-                    <span>{predictions.twitter.replies} Replies</span>
-                    <span>{predictions.twitter.retweets} Retweets</span>
-                    <span>{predictions.twitter.likes} Likes</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="linkedin" className="mt-4">
-          <Card className="max-w-md mx-auto">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-12 h-12 rounded-full bg-gray-200"></div>
-                <div>
-                  <p className="text-sm font-medium">Your Brand</p>
-                  <p className="text-xs text-muted-foreground">Company · Just now</p>
-                </div>
-              </div>
-              <p className="text-sm mb-3">
-                ✨ SUMMER SALE ALERT! ✨<br />
-                <br />
-                Beat the heat with our refreshing skincare collection – now 30% OFF this weekend only!
-                <br />
-                <br />
-                Our dermatologist-approved formulas will keep your skin glowing all summer long. Stock up on your favorites or try something new!
-                <br />
-                <br />
-                Shop now through Sunday at midnight.
-                <br />
-                <br />
-                #SummerSkincare #WeekendSale #SkincareSale
-              </p>
-              <div className="rounded-lg overflow-hidden mb-3">
-                <img src="/placeholder.svg?height=300&width=500" alt="Post preview" className="w-full object-cover" />
-              </div>
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{predictions.linkedin.reactions} Reactions</span>
-                <span>{predictions.linkedin.comments} Comments</span>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </TabsContent>
+        ))}
       </Tabs>
-      <div className="flex justify-center mt-6">
-        <Button variant="outline" onClick={() => setWarnings([])}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Regenerate Content
-        </Button>
-      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex justify-center gap-4"
+      >
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <Button
+            variant="outline"
+            onClick={() => setStep(3)}
+            className="border-gray-300 shadow-sm hover:bg-gray-50 rounded-lg px-6 py-2"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Back to Generate
+          </Button>
+        </motion.div>
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <Button
+            className="bg-green-600 text-white hover:bg-green-700 rounded-lg px-6 py-2"
+            onClick={handleSave}
+          >
+            <Save className="mr-2 h-4 w-4" />
+            Save and Schedule
+          </Button>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

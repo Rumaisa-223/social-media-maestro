@@ -36,7 +36,7 @@ export class TemplateGenerator {
 
     // Extract style preferences
     let colorScheme = "beige"
-    let layout: "classic" | "modern" | "minimal" | "creative" = "classic"
+    let layout: "classic" | "modern" | "minimal" | "creative" | "poster" | "sale" = "classic"
 
     if (words.some((w) => ["modern", "contemporary", "sleek"].includes(w))) {
       layout = "modern"
@@ -51,6 +51,9 @@ export class TemplateGenerator {
       colorScheme = "beige"
     } else if (words.some((w) => ["professional", "corporate", "business"].includes(w))) {
       colorScheme = "blue"
+    } else if (words.some((w) => ["sale", "marketing", "poster", "promotion"].includes(w))) {
+      layout = "poster"
+      colorScheme = "orange"
     }
 
     // Extract name if provided
@@ -63,6 +66,11 @@ export class TemplateGenerator {
     // Generate appropriate quote
     const quote = this.generateQuote(detectedProfession)
 
+    // Generate AI image based on profession and style
+    const imagePrompt = `professional ${detectedProfession} ${detectedSpecialty} workspace ${layout} style`
+    const seed = Date.now()
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=400&height=400&seed=${seed}`
+
     return {
       id: `generated-${Date.now()}`,
       name: "Generated Template",
@@ -72,10 +80,11 @@ export class TemplateGenerator {
         name: extractedName,
         profession: professionTitle,
         quote: quote,
-        imageUrl: `/placeholder.svg?height=400&width=400&query=${detectedProfession} professional portrait`,
+        imageUrl: imageUrl,
         colorScheme: colorScheme,
         layout: layout,
         format: format,
+        style: layout === "poster" ? "bold" : "modern",
       },
       tags: [detectedProfession, detectedSpecialty, layout, colorScheme, format],
     }
@@ -87,8 +96,15 @@ export class TemplateGenerator {
     const specialties = professionTemplates[randomProfession as keyof typeof professionTemplates]
     const randomSpecialty = specialties[Math.floor(Math.random() * specialties.length)]
 
-    const layouts: Array<"classic" | "modern" | "minimal" | "creative"> = ["classic", "modern", "minimal", "creative"]
-    const colors = ["beige", "blue", "green", "purple", "pink"]
+    const layouts: Array<"classic" | "modern" | "minimal" | "creative" | "poster" | "sale"> = [
+      "classic",
+      "modern",
+      "minimal",
+      "creative",
+      "poster",
+      "sale",
+    ]
+    const colors = ["beige", "blue", "green", "purple", "pink", "orange", "teal"]
     const formats: Array<"classic" | "square" | "vertical" | "horizontal"> = [
       "classic",
       "square",
@@ -100,6 +116,11 @@ export class TemplateGenerator {
     const randomColor = colors[Math.floor(Math.random() * colors.length)]
     const randomFormat = formats[Math.floor(Math.random() * formats.length)]
 
+    // Generate AI image for random template
+    const imagePrompt = `professional ${randomProfession} ${randomSpecialty} workspace ${randomLayout} style`
+    const seed = Date.now() + Math.random() * 1000
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=400&height=400&seed=${Math.floor(seed)}`
+
     return {
       id: `random-${Date.now()}`,
       name: "Random Generated",
@@ -109,10 +130,11 @@ export class TemplateGenerator {
         name: this.generateRandomName(),
         profession: `${randomSpecialty.toUpperCase()} ${randomProfession.toUpperCase()}`,
         quote: this.generateQuote(randomProfession),
-        imageUrl: `/placeholder.svg?height=400&width=400&query=${randomProfession} professional portrait`,
+        imageUrl: imageUrl,
         colorScheme: randomColor,
         layout: randomLayout,
         format: randomFormat,
+        style: randomLayout === "poster" || randomLayout === "sale" ? "bold" : "modern",
       },
       tags: [randomProfession, randomSpecialty, randomLayout, randomColor, randomFormat],
     }
@@ -170,6 +192,11 @@ export class TemplateGenerator {
         "COOKING IS LIKE LOVE.\nIT SHOULD BE ENTERED INTO WITH ABANDON OR NOT AT ALL.",
         "THE SECRET OF COOKING IS TO HAVE A LOVE OF IT.\nGOOD FOOD IS GOOD MOOD.",
         "COOKING IS NOT ABOUT CONVENIENCE.\nIT'S ABOUT LOVE, CULTURE, AND CREATIVITY.",
+      ],
+      marketer: [
+        "MARKETING IS NO LONGER ABOUT THE STUFF YOU MAKE.\nBUT THE STORIES YOU TELL.",
+        "CONTENT IS FIRE. SOCIAL MEDIA IS GASOLINE.\nTOGETHER THEY CREATE AN EXPLOSION.",
+        "THE BEST MARKETING DOESN'T FEEL LIKE MARKETING.\nIT FEELS LIKE A CONVERSATION.",
       ],
     }
 

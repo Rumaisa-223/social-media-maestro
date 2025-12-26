@@ -1,38 +1,82 @@
+'use client'
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/logo"
+import { useEffect, useRef, useState } from "react"
 
-export default function WelcomePage() {
+export default function HomePage() {
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [particles, setParticles] = useState<Array<{ left: string; animationDelay: string; animationDuration: string }>>([])
+  const heroRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({
+        x: (e.clientX / window.innerWidth) * 100,
+        y: (e.clientY / window.innerHeight) * 100,
+      })
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
+
+  useEffect(() => {
+    // Generate particles only on client side to avoid hydration mismatch
+    setParticles(
+      Array.from({ length: 20 }).map(() => ({
+        left: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 20}s`,
+        animationDuration: `${15 + Math.random() * 10}s`,
+      }))
+    )
+  }, [])
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 relative overflow-hidden">
+      {/* Animated Background Gradient */}
+      <div 
+        className="fixed inset-0 opacity-30 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, hsl(var(--primary)) 0%, transparent 50%)`,
+          transition: 'background 0.3s ease-out'
+        }}
+      />
+
+      {/* Floating Particles */}
+      {particles.map((particle, i) => (
+        <div
+          key={i}
+          className="particle"
+          style={{
+            left: particle.left,
+            animationDelay: particle.animationDelay,
+            animationDuration: particle.animationDuration,
+          }}
+        />
+      ))}
+
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
+      <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md shadow-sm z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Link href="/" className="text-2xl font-['Pacifico'] text-primary">
-                Social Media Maestro
-              </Link>
-              <nav className="hidden md:flex ml-10 space-x-8">
-                <Link href="#" className="text-gray-700 hover:text-primary font-medium">
-                  Product
-                </Link>
-                <Link href="#" className="text-gray-700 hover:text-primary font-medium">
-                  Resources
-                </Link>
-                <Link href="#" className="text-gray-700 hover:text-primary font-medium">
-                  Company
-                </Link>
-                <Link href="#" className="text-gray-700 hover:text-primary font-medium">
-                  Plans & Pricing
-                </Link>
-              </nav>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/login" className="text-gray-700 hover:text-primary font-medium">
+            <Link href="/" className="flex items-center gap-3 group">
+              <Logo size="sm" showText animated className="group-hover:scale-105 transition-transform duration-300" />
+            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/auth/login" className="text-slate-600 hover:text-blue-600 transition-colors font-medium relative group">
                 Sign in
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300" />
               </Link>
-              <Link href="/onboarding">
-                <Button className="whitespace-nowrap">Get Started</Button>
+              <Link href="/auth/signup">
+                <Button className="rounded-full get-started-button relative bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 border-0">
+                  <span className="relative z-10">Get Started</span>
+                  <span className="sparkle" />
+                  <span className="sparkle" />
+                  <span className="sparkle" />
+                  <span className="sparkle" />
+                </Button>
               </Link>
             </div>
           </div>
@@ -40,348 +84,157 @@ export default function WelcomePage() {
       </header>
 
       {/* Hero Section */}
-      <section
-        className="w-full pt-28 pb-16 md:py-32 bg-gradient-to-r from-blue-50 to-indigo-50"
-        style={{
-          backgroundImage:
-            "url('https://readdy.ai/api/search-image?query=modern%20social%20media%20dashboard%20interface%20with%20soft%20gradient%20background%2C%20professional%20design%2C%20clean%20layout%2C%20statistics%20charts%2C%20content%20calendar%2C%20social%20media%20icons%2C%20blue%20and%20purple%20color%20scheme%2C%20high-quality%203D%20rendering%2C%20photorealistic%2C%20right%20side%20focused%20content%20with%20left%20side%20having%20clean%20gradient%20background%20for%20text&width=1920&height=800&seq=1&orientation=landscape')",
-          backgroundSize: "cover",
-          backgroundPosition: "center"
-        }}
+      <section 
+        ref={heroRef}
+        className="w-full pt-32 pb-20 md:py-40 relative overflow-hidden"
+        data-barba="container"
       >
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center w-full">
-            <div className="md:w-1/2 text-left mb-10 md:mb-0">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4">Master Your Socials</h1>
-              <p className="text-xl text-gray-700 mb-8 max-w-lg">
-                Effortlessly elevate your social media strategy with our intuitive tools. Save time, increase
-                engagement, and grow your audience.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Link href="/onboarding">
-                  <Button size="lg" className="whitespace-nowrap">
-                    Join us now
-                  </Button>
-                </Link>
-                <Button size="lg" variant="outline" className="whitespace-nowrap">
-                  Request demo
-                </Button>
-                <Button size="icon" variant="ghost" className="rounded-full w-12 h-12">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-6 w-6 text-primary"
-                  >
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                </Button>
-              </div>
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=1920"
+            alt="Background"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-cyan-900/70 to-teal-900/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 via-cyan-600/30 to-transparent"></div>
+        </div>
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="max-w-3xl mx-auto text-center animate-fade-in">
+            <div className="mb-6 animate-float" style={{ animationDelay: '0.2s' }}>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 text-white leading-tight drop-shadow-lg">
+                Master Your Socials
+              </h1>
             </div>
-            <div className="md:w-1/2">
-              <img
-                src="https://readdy.ai/api/search-image?query=modern%20social%20media%20dashboard%20interface%20with%20soft%20gradient%20background%2C%20professional%20design%2C%20clean%20layout%2C%20statistics%20charts%2C%20content%20calendar%2C%20social%20media%20icons%2C%20blue%20and%20purple%20color%20scheme%2C%20high-quality%203D%20rendering%2C%20photorealistic%2C%20right%20side%20focused%20content%20with%20left%20side%20having%20clean%20gradient%20background%20for%20text&width=1920&height=800&seq=1&orientation=landscape"
-                alt="Social Media Dashboard"
-                className="rounded-lg shadow-xl"
-              />
+            <p className="text-xl md:text-2xl text-white/95 mb-8 max-w-2xl mx-auto animate-slide-up leading-relaxed drop-shadow-md" style={{ animationDelay: '0.4s' }}>
+              Effortlessly manage, schedule, and analyze your social media presence with our intelligent platform. Save
+              time, boost engagement, and grow exponentially.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4 animate-scale-in" style={{ animationDelay: '0.6s' }}>
+              <Link href="/auth/signup">
+                <Button size="lg" className="rounded-full px-8 animated-button bg-white text-blue-700 hover:bg-blue-50 border-0 shadow-lg hover:shadow-xl transition-all">
+                  <span className="relative z-10">Join Free Today</span>
+                </Button>
+              </Link>
+              <Button size="lg" variant="outline" className="rounded-full px-8 bg-transparent border-2 border-white/80 text-white hover:bg-white/20 backdrop-blur-sm animated-button">
+                Watch Demo
+              </Button>
             </div>
           </div>
+
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Powerful Features</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+      {/* Features Preview */}
+      <section className="py-20 bg-white/60 backdrop-blur-sm border-y border-blue-100 relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="text-center mb-16 animate-fade-in">
+            <span className="inline-block px-4 py-2 bg-cyan-100 rounded-full text-sm font-semibold text-cyan-700 mb-4">
+              Features
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent">
+              Powerful Features
+            </h2>
+            <p className="text-slate-600 text-lg max-w-2xl mx-auto">
               Everything you need to manage your social media presence in one place.
             </p>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <div className="w-16 h-16 bg-primary bg-opacity-10 rounded-lg flex items-center justify-center mb-6">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-8 w-8 text-primary"
-                >
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
+            <div
+              className="p-6 rounded-2xl bg-white border border-blue-100 shadow-lg hover:shadow-2xl card-hover-effect group relative overflow-hidden"
+              style={{ animationDelay: "0.1s" }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">Schedule Posts</h3>
+                <p className="text-slate-600 leading-relaxed">Plan your content calendar across all platforms seamlessly.</p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Post Scheduler</h3>
-              <p className="text-gray-600 mb-6">
-                Plan and schedule your content across multiple platforms. Set it and forget it with our automated
-                publishing system.
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=social%20media%20content%20calendar%20interface%20with%20scheduled%20posts%2C%20clean%20modern%20UI%20design%2C%20professional%20layout%2C%20content%20preview%20cards%2C%20time%20slots%20visualization%2C%20soft%20color%20palette%20with%20blue%20accents&width=400&height=250&seq=2&orientation=landscape"
-                alt="Post Scheduler"
-                className="w-full h-48 object-cover object-top rounded-lg"
-              />
             </div>
-
-            {/* Feature 2 */}
-            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <div className="w-16 h-16 bg-primary bg-opacity-10 rounded-lg flex items-center justify-center mb-6">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-8 w-8 text-primary"
-                >
-                  <line x1="18" y1="20" x2="18" y2="10" />
-                  <line x1="12" y1="20" x2="12" y2="4" />
-                  <line x1="6" y1="20" x2="6" y2="14" />
-                </svg>
+            <div
+              className="p-6 rounded-2xl bg-white border border-cyan-100 shadow-lg hover:shadow-2xl card-hover-effect group relative overflow-hidden"
+              style={{ animationDelay: "0.2s" }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-cyan-600 transition-colors">Real-time Analytics</h3>
+                <p className="text-slate-600 leading-relaxed">Track performance with powerful insights and metrics.</p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Analytics Dashboard</h3>
-              <p className="text-gray-600 mb-6">
-                Track performance with real-time analytics. Understand your audience and optimize your content strategy with actionable insights.
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=social%20media%20analytics%20dashboard%20with%20charts%2C%20graphs%2C%20engagement%20metrics%2C%20audience%20demographics%2C%20performance%20indicators%2C%20clean%20modern%20UI%20design%2C%20professional%20layout%20with%20data%20visualization%2C%20blue%20and%20white%20color%20scheme&width=400&height=250&seq=3&orientation=landscape"
-                alt="Analytics Dashboard"
-                className="w-full h-48 object-cover object-top rounded-lg"
-              />
             </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <div className="w-16 h-16 bg-primary bg-opacity-10 rounded-lg flex items-center justify-center mb-6">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-8 w-8 text-primary"
-                >
-                  <path d="M7 20l4-16m2 16l4-16" />
-                </svg>
+            <div
+              className="p-6 rounded-2xl bg-white border border-teal-100 shadow-lg hover:shadow-2xl card-hover-effect group relative overflow-hidden"
+              style={{ animationDelay: "0.3s" }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-teal-600 transition-colors">AI-Powered Growth</h3>
+                <p className="text-slate-600 leading-relaxed">Get intelligent suggestions to maximize your reach.</p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Hashtag Generator</h3>
-              <p className="text-gray-600 mb-6">
-                Discover trending hashtags that boost your visibility. Our AI-powered tool suggests the most effective
-                tags for your content.
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=social%20media%20hashtag%20generator%20interface%20showing%20trending%20hashtags%2C%20tag%20cloud%20visualization%2C%20category%20filters%2C%20suggested%20hashtags%20with%20engagement%20metrics%2C%20clean%20modern%20UI%20design%2C%20professional%20layout%20with%20blue%20accent%20colors&width=400&height=250&seq=4&orientation=landscape"
-                alt="Hashtag Generator"
-                className="w-full h-48 object-cover object-top rounded-lg"
-              />
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary to-secondary text-white">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Social Media Strategy?</h2>
-          <p className="text-xl mb-10 max-w-2xl mx-auto opacity-90">
-            Join thousands of brands and creators who are growing their audience and saving time with Social Media Maestro.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90">
-              Start Free Trial
-            </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-              Schedule a Demo
-            </Button>
+      <section className="py-20 md:py-32 relative overflow-hidden bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIwOS0xLjc5MS00LTQtNHMtNCAxLjc5MS00IDQgMS43OTEgNCA0IDQgNC0xLjc5MSA0LTR6bTAgMTJjMC0yLjIwOS0xLjc5MS00LTQtNHMtNCAxLjc5MS00IDQgMS43OTEgNCA0IDQgNC0xLjc5MSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-10" />
+        <div className="container mx-auto px-6 text-center relative z-10">
+          <div className="max-w-3xl mx-auto animate-scale-in">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Ready to Transform Your Strategy?
+            </h2>
+            <p className="text-xl mb-10 max-w-2xl mx-auto opacity-95 leading-relaxed animate-slide-up">
+              Join thousands of creators and brands growing their presence with Social Maestro.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <Link href="/auth/signup">
+                <Button size="lg" className="rounded-full px-8 animated-button bg-white text-blue-600 hover:bg-blue-50 shadow-xl hover:shadow-2xl transition-all border-0">
+                  <span className="relative z-10">Start Your Free Trial</span>
+                </Button>
+              </Link>
+              <Button size="lg" variant="outline" className="rounded-full px-8 border-2 border-white text-white hover:bg-white/20 backdrop-blur-sm animated-button">
+                Schedule a Demo
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white pt-16 pb-8">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-            {/* Column 1 */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Product</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Features
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Integrations
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Enterprise
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Solutions
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    What's New
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            {/* Column 2 */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Resources</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Blog
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Guides & Tutorials
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Help Center
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    API Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Community
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            {/* Column 3 */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Company</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Press
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Partners
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            {/* Column 4 */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Plans & Pricing</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Personal
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Professional
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Team
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Enterprise
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Compare Plans
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 pt-8">
+      <footer className="bg-slate-900 text-white pt-16 pb-8 relative">
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="border-t border-slate-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="mb-4 md:mb-0">
-                <Link href="/" className="text-2xl font-['Pacifico'] text-white">
-                  Social Media Maestro
+                <Link href="/" className="inline-block">
+                  <Logo size="md" showText animated className="text-white" />
                 </Link>
-                <p className="text-gray-400 mt-2">© 2025 Social Media Maestro. All rights reserved.</p>
-              </div>
-              <div className="flex space-x-6">
-                <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                  >
-                    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-                  </svg>
-                </Link>
-                <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M16 8a6 6 0 1 1-8 8" />
-                  </svg>
-                </Link>
-                {/* Add more social icons as needed */}
+                <p className="text-slate-400 mt-2">&copy; 2025 Social Media Maestro. All rights reserved.</p>
               </div>
             </div>
           </div>

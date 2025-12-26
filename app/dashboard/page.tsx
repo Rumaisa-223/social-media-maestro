@@ -1,8 +1,52 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { cookies } from "next/headers"
+import { SmartSuggestions } from "@/components/dashboard/smart-suggestions"
+import { DashboardChart } from "@/components/dashboard/dashboard-chart"
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
-export default function Dashboard() {
+function formatTime(date: Date) {
+  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+}
+
+function toDateString(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+type ApiSchedule = {
+  id: string
+  scheduledFor: string
+  socialAccount: { provider: string }
+  contentItem?: { id: string; metadata: any } | null
+}
+
+export default async function Dashboard() {
+  const today = new Date()
+  const base = process.env.NEXT_PUBLIC_BASE_URL || ""
+  const url = `${base}/api/schedules`
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { cookie: (await cookies()).toString() },
+  }).catch(() => null)
+  const json = await res?.json().catch(() => null)
+  const schedules: ApiSchedule[] = Array.isArray(json?.schedules) ? json!.schedules : []
+  const items = schedules
+    .filter((s) => {
+      const d = new Date(s.scheduledFor)
+      return d.toDateString() === today.toDateString()
+    })
+    .map((s) => {
+    const time = formatTime(new Date(s.scheduledFor))
+    const provider = String(s.socialAccount?.provider || "UNKNOWN")
+    const caption = String((s.contentItem?.metadata as any)?.caption || "")
+    return { id: s.id, time, provider, caption }
+  })
+
   return (
     <div>
       <div className="mb-6">
@@ -34,86 +78,33 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="border-l-4 border-blue-500 pl-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="text-center min-w-16">
-                    <div className="text-sm font-medium text-gray-500">9:30 AM</div>
-                    <Badge variant="secondary" className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-100">
-                      Instagram
-                    </Badge>
-                  </div>
-
-                  <div className="flex-1">
-                    <h3 className="font-medium">Product Launch Announcement</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Introducing our new spring collection with exclusive early-bird discounts.
-                    </p>
-
-                    <div className="flex gap-2 mt-3">
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        Reschedule
-                      </Button>
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className="border-l-4 border-blue-500 pl-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="text-center min-w-16">
+                      <div className="text-sm font-medium text-gray-500">{item.time}</div>
+                      <Badge variant="secondary" className="mt-1 bg-blue-100 text-blue-700 hover:bg-blue-100">
+                        {item.provider.charAt(0) + item.provider.slice(1).toLowerCase()}
+                      </Badge>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-medium">{item.caption ? item.caption.slice(0, 80) : "Scheduled post"}</h3>
+                      <p className="text-sm text-gray-500 mt-1">{item.caption ? `${item.caption.slice(0, 200)}…` : ""}</p>
+                      <div className="flex gap-2 mt-3">
+                        <Button variant="outline" size="sm">
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          Reschedule
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="border-l-4 border-green-500 pl-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="text-center min-w-16">
-                    <div className="text-sm font-medium text-gray-500">12:00 PM</div>
-                    <Badge variant="secondary" className="mt-1 bg-green-100 text-green-700 hover:bg-green-100">
-                      Twitter
-                    </Badge>
-                  </div>
-
-                  <div className="flex-1">
-                    <h3 className="font-medium">Industry News Update</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Breaking: New market trends show 32% increase in digital engagement. Our analysis coming soon!
-                    </p>
-
-                    <div className="flex gap-2 mt-3">
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        Reschedule
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-l-4 border-purple-500 pl-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="text-center min-w-16">
-                    <div className="text-sm font-medium text-gray-500">3:45 PM</div>
-                    <Badge variant="secondary" className="mt-1 bg-purple-100 text-purple-700 hover:bg-purple-100">
-                      LinkedIn
-                    </Badge>
-                  </div>
-
-                  <div className="flex-1">
-                    <h3 className="font-medium">Case Study Publication</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      How we helped TechCorp increase conversion rates by 45% in just 3 months.
-                    </p>
-
-                    <div className="flex gap-2 mt-3">
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        Reschedule
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -192,151 +183,11 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-              <p className="text-gray-400">Performance Chart</p>
-            </div>
+            <DashboardChart />
           </CardContent>
         </Card>
 
-        {/* Smart Suggestions */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-semibold">Smart Suggestions</CardTitle>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 flex items-center gap-1">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-3 w-3"
-              >
-                <path d="M12 2v8" />
-                <path d="m4.93 10.93 1.41 1.41" />
-                <path d="M2 18h2" />
-                <path d="M20 18h2" />
-                <path d="m19.07 10.93-1.41 1.41" />
-                <path d="M22 22H2" />
-                <path d="m16 6-4 4-4-4" />
-                <path d="M16 18a4 4 0 0 0-8 0" />
-              </svg>
-              <span>AI Generated</span>
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 flex-shrink-0">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 16v-4" />
-                      <path d="M12 8h.01" />
-                    </svg>
-                  </div>
-
-                  <div className="flex-1">
-                    <h3 className="font-medium">Optimize Post Timing</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Your audience is most active between 7-9 PM. Consider rescheduling your evening posts to this
-                      timeframe for 28% higher engagement.
-                    </p>
-
-                    <div className="flex gap-2 mt-3">
-                      <Button size="sm">Apply</Button>
-                      <Button variant="outline" size="sm">
-                        Dismiss
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 flex-shrink-0">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                    >
-                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="16" y1="13" x2="8" y2="13" />
-                      <line x1="16" y1="17" x2="8" y2="17" />
-                      <line x1="10" y1="9" x2="8" y2="9" />
-                    </svg>
-                  </div>
-
-                  <div className="flex-1">
-                    <h3 className="font-medium">Content Gap Opportunity</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Your competitors are getting traction with tutorial content. Consider creating a how-to series for
-                      your product features.
-                    </p>
-
-                    <div className="flex gap-2 mt-3">
-                      <Button size="sm">Create Series</Button>
-                      <Button variant="outline" size="sm">
-                        Dismiss
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 flex-shrink-0">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-4 w-4"
-                    >
-                      <path d="M7 20l4-16m2 16l4-16" />
-                    </svg>
-                  </div>
-
-                  <div className="flex-1">
-                    <h3 className="font-medium">Trending Hashtag Alert</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      #SustainableBusiness is trending in your industry. Add this to your next post about your
-                      eco-friendly initiatives.
-                    </p>
-
-                    <div className="flex gap-2 mt-3">
-                      <Button size="sm">Use Hashtag</Button>
-                      <Button variant="outline" size="sm">
-                        Dismiss
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <SmartSuggestions />
 
         {/* Trending Topics */}
         <Card>

@@ -1,16 +1,16 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { MessageSquare, Clock, ImageIcon, HashIcon as Hashtag } from "lucide-react"
 
 export function AIInsights() {
-  const captionData = [
+  const [captionData, setCaptionData] = useState([
     { type: "With questions", value: 6.8 },
     { type: "Without questions", value: 2.8 },
-  ]
-
-  const timeData = [
+  ])
+  const [timeData, setTimeData] = useState([
     { day: "Mon", value: 45 },
     { day: "Tue", value: 52 },
     { day: "Wed", value: 48 },
@@ -18,15 +18,48 @@ export function AIInsights() {
     { day: "Fri", value: 52 },
     { day: "Sat", value: 38 },
     { day: "Sun", value: 32 },
-  ]
-
-  const hashtagData = [
+  ])
+  const [hashtagData, setHashtagData] = useState([
     { count: "1-2", value: 28 },
     { count: "3-4", value: 42 },
     { count: "5-7", value: 68 },
     { count: "8-10", value: 48 },
     { count: "11+", value: 32 },
-  ]
+  ])
+  const [contentType, setContentType] = useState({ video: 8.7, carousel: 5.2, image: 2.8 })
+  const [captionSuggestion, setCaptionSuggestion] = useState("Posts with questions in captions receive 2.4x higher engagement compared to statements. Consider adding questions to encourage audience interaction.")
+  const [timeSuggestion, setTimeSuggestion] = useState("Thursday posts at 10 AM consistently outperform other days and times with 37% higher reach. Consider adjusting your posting schedule.")
+  const [typeSuggestion, setTypeSuggestion] = useState("Video content generates 3.1x more engagement than static images. Consider increasing video content in your strategy.")
+  const [hashtagSuggestion, setHashtagSuggestion] = useState("Using 5-7 niche hashtags results in 42% more reach than using more than 10 hashtags. Focus on quality over quantity.")
+
+  useEffect(() => {
+    let mounted = true
+    fetch("/api/analytics").then(async (r) => {
+      const d = await r.json()
+      if (!mounted) return
+      const ai = d?.aiInsights || {}
+      const cap = ai?.captionPerformance || []
+      const times = ai?.optimalTimes?.days || []
+      const types = ai?.contentType || {}
+      const tags = ai?.hashtagsEffectiveness || []
+      const fmtCap = cap.map((c: any) => ({ type: String(c.type), value: Number(c.value || 0) }))
+      const fmtTimes = times.map((x: any) => ({ day: String(x.day), value: Number(x.value || 0) }))
+      const fmtTags = tags.map((t: any) => ({ count: String(t.count), value: Number(t.value || 0) }))
+      if (fmtCap.length) setCaptionData(fmtCap)
+      if (fmtTimes.length) setTimeData(fmtTimes)
+      if (fmtTags.length) setHashtagData(fmtTags)
+      setContentType({
+        video: Number(types.video || 0),
+        carousel: Number(types.carousel || 0),
+        image: Number(types.image || 0),
+      })
+      if (ai?.suggestions?.caption) setCaptionSuggestion(String(ai.suggestions.caption))
+      if (ai?.suggestions?.time) setTimeSuggestion(String(ai.suggestions.time))
+      if (ai?.suggestions?.type) setTypeSuggestion(String(ai.suggestions.type))
+      if (ai?.suggestions?.hashtag) setHashtagSuggestion(String(ai.suggestions.hashtag))
+    }).catch(() => {})
+    return () => { mounted = false }
+  }, [])
 
   return (
     <Card>
@@ -44,25 +77,21 @@ export function AIInsights() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 mb-2">Caption Performance</h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Posts with questions in captions receive{" "}
-                    <span className="font-bold text-purple-600">2.4x higher</span> engagement compared to statements.
-                    Consider adding questions to encourage audience interaction.
-                  </p>
+                  <p className="text-sm text-gray-600 mb-3">{captionSuggestion}</p>
                   <div className="bg-gray-50 p-3 rounded border border-gray-200">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm text-gray-500">With questions</span>
-                      <span className="text-sm font-medium text-gray-900">6.8% engagement</span>
+                      <span className="text-sm font-medium text-gray-900">{captionData[0]?.value?.toFixed(1)}% engagement</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-                      <div className="bg-purple-600 h-2 rounded-full" style={{ width: "68%" }}></div>
+                      <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${captionData[0]?.value || 0}%` }}></div>
                     </div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm text-gray-500">Without questions</span>
-                      <span className="text-sm font-medium text-gray-900">2.8% engagement</span>
+                      <span className="text-sm font-medium text-gray-900">{captionData[1]?.value?.toFixed(1)}% engagement</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-purple-600 h-2 rounded-full" style={{ width: "28%" }}></div>
+                      <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${captionData[1]?.value || 0}%` }}></div>
                     </div>
                   </div>
                 </div>
@@ -78,11 +107,7 @@ export function AIInsights() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 mb-2">Optimal Posting Time</h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Thursday posts at 10 AM consistently outperform other days and times with{" "}
-                    <span className="font-bold text-blue-600">37% higher</span> reach. Consider adjusting your posting
-                    schedule.
-                  </p>
+                  <p className="text-sm text-gray-600 mb-3">{timeSuggestion}</p>
                   <div className="h-32">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={timeData}>
@@ -118,10 +143,7 @@ export function AIInsights() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 mb-2">Content Type Analysis</h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Video content generates <span className="font-bold text-green-600">3.1x more</span> engagement than
-                    static images. Consider increasing video content in your strategy.
-                  </p>
+                  <p className="text-sm text-gray-600 mb-3">{typeSuggestion}</p>
                   <div className="grid grid-cols-3 gap-3 mt-4">
                     <div className="bg-gray-50 p-3 rounded border border-gray-200 text-center">
                       <div className="flex h-8 w-8 items-center justify-center mx-auto mb-2 text-green-600">
@@ -142,7 +164,7 @@ export function AIInsights() {
                         </svg>
                       </div>
                       <p className="text-xs font-medium text-gray-500">Videos</p>
-                      <p className="text-sm font-bold text-gray-900">8.7%</p>
+                      <p className="text-sm font-bold text-gray-900">{contentType.video?.toFixed(1)}%</p>
                     </div>
                     <div className="bg-gray-50 p-3 rounded border border-gray-200 text-center">
                       <div className="flex h-8 w-8 items-center justify-center mx-auto mb-2 text-blue-600">
@@ -165,7 +187,7 @@ export function AIInsights() {
                         </svg>
                       </div>
                       <p className="text-xs font-medium text-gray-500">Carousels</p>
-                      <p className="text-sm font-bold text-gray-900">5.2%</p>
+                      <p className="text-sm font-bold text-gray-900">{contentType.carousel?.toFixed(1)}%</p>
                     </div>
                     <div className="bg-gray-50 p-3 rounded border border-gray-200 text-center">
                       <div className="flex h-8 w-8 items-center justify-center mx-auto mb-2 text-purple-600">
@@ -187,7 +209,7 @@ export function AIInsights() {
                         </svg>
                       </div>
                       <p className="text-xs font-medium text-gray-500">Images</p>
-                      <p className="text-sm font-bold text-gray-900">2.8%</p>
+                      <p className="text-sm font-bold text-gray-900">{contentType.image?.toFixed(1)}%</p>
                     </div>
                   </div>
                 </div>
@@ -203,10 +225,7 @@ export function AIInsights() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 mb-2">Hashtag Effectiveness</h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Using 5-7 niche hashtags results in <span className="font-bold text-orange-600">42% more</span>{" "}
-                    reach than using more than 10 hashtags. Focus on quality over quantity.
-                  </p>
+                  <p className="text-sm text-gray-600 mb-3">{hashtagSuggestion}</p>
                   <div className="h-32">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={hashtagData}>
