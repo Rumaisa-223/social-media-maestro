@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { ArrowLeft, ArrowRight, Save } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
-import { ChoosePlatforms } from "@/components/create-post/choose-platforms"
-import { PostType } from "@/components/create-post/post-type"
-import GenerateContent from "@/components/generate-content-unified"; // ✅ Correct now
-import { PreviewPost } from "@/components/create-post/preview-post"
-import { SchedulePost } from "@/components/create-post/schedule-post"
+import { ChoosePlatforms } from "@/components/create-post/choose-platforms";
+import { PostType } from "@/components/create-post/post-type";
+import GenerateContent from "@/components/generate-content-unified";
+import PreviewPost from "@/components/create-post/preview-post";
+import { SchedulePost } from "@/components/create-post/schedule-post";
 
 const steps = [
   { id: 1, name: "Choose Platforms" },
@@ -17,36 +17,35 @@ const steps = [
   { id: 3, name: "Generate Content" },
   { id: 4, name: "Preview" },
   { id: 5, name: "Schedule" },
-]
+];
 
 export function CreatePostWizard() {
-  const [currentStep, setCurrentStep] = useState(1)
+  const [currentStep, setCurrentStep] = useState(1);
 
   const nextStep = () => {
-    if (currentStep < steps.length) setCurrentStep(currentStep + 1)
-  }
+    if (currentStep < steps.length) setCurrentStep(currentStep + 1);
+  };
 
   const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1)
-  }
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
 
   const renderStep = () => {
-    console.log("GenerateContent component:", GenerateContent); // Debug log
     switch (currentStep) {
       case 1:
-        return <ChoosePlatforms />
+        return <ChoosePlatforms />;
       case 2:
-        return <PostType />
+        return <PostType />;
       case 3:
-        return GenerateContent ? <GenerateContent /> : <div>GenerateContent is undefined</div> // Fallback
+        return <GenerateContent />;
       case 4:
-        return <PreviewPost />
+        return <PreviewPost />;
       case 5:
-        return <SchedulePost />
+        return <SchedulePost />;
       default:
-        return <ChoosePlatforms />
+        return <ChoosePlatforms />;
     }
-  }
+  };
 
   return (
     <div>
@@ -94,18 +93,15 @@ export function CreatePostWizard() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
 
-            <div className="flex gap-2">
-              <Button variant="outline">
-                <Save className="mr-2 h-4 w-4" /> Save Draft
-              </Button>
+            {currentStep !== 5 && (
               <Button onClick={nextStep} disabled={currentStep === steps.length}>
                 {currentStep === steps.length - 1 ? "Schedule" : "Next"}{" "}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

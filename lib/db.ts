@@ -1,47 +1,59 @@
-import { createClient } from "@supabase/supabase-js";
+import { PrismaClient } from "@prisma/client";
+import { encrypt, decrypt } from "./encrypt";
 
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-export async function saveSocialToken(userId: string, platform: string, token: string) {
-  const { error } = await supabase
-    .from("tokens")
-    .upsert(
-      { userId, platform, token, updatedAt: new Date().toISOString() },
-      { onConflict: "userId,platform" }
-    );
-
-  if (error) {
-    console.error("Error saving token:", error.message);
-    throw new Error("Failed to save social token");
-  }
+declare global {
+  var prisma: PrismaClient | undefined;
 }
 
-export async function getSocialToken(userId: string, platform: string) {
-  const { data, error } = await supabase
-    .from("tokens")
-    .select("token")
-    .eq("userId", userId)
-    .eq("platform", platform)
-    .single();
+export const db = global.prisma || new PrismaClient();
+if (process.env.NODE_ENV !== "production") global.prisma = db;
 
-  if (error) {
-    console.error("Error fetching token:", error.message);
-    return null;
+export async function saveToken(
+  userId: string,
+  platform: string,
+  data: {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+    pageId?: string;
   }
+) {
+  const encryptedAccess = encrypt(data.access_token);
+  const encryptedRefresh = data.refresh_token ? encrypt(data.refresh_token) : null;
 
-  return data?.token || null;
-}
-
-export async function saveScheduledPost(postData: any) {
-  const { error } = await supabase.from("posts").insert({
-    ...postData,
-    createdAt: new Date().toISOString(),
+  return db.socialToken.upsert({
+    where: { userId_platform: { userId, platform } },
+    update: {
+      accessToken: encryptedAccess,
+      refreshToken: encryptedRefresh,
+      expiresAt: data.expires_in
+        ? new Date(Date.now() + data.expires_in * 1000)
+        : null,
+      pageId: data.pageId,
+    },
+    create: {
+      userId,
+      platform,
+      accessToken: encryptedAccess,
+      refreshToken: encryptedRefresh,
+      expiresAt: data.expires_in
+        ? new Date(Date.now() + data.expires_in * 1000)
+        : null,
+      pageId: data.pageId,
+    },
   });
+}
 
-  if (error) {
-    console.error("Error saving post:", error.message);
-    throw new Error("Failed to save scheduled post");
-  }
+export async function getDecryptedToken(userId: string, platform: string) {
+  const token = await db.socialToken.findUnique({
+    where: { userId_platform: { userId, platform } },
+  });
+  if (!token) return null;
+
+  return {
+    accessToken: decrypt(token.accessToken),
+    refreshToken: token.refreshToken ? decrypt(token.refreshToken) : null,
+    expiresAt: token.expiresAt,
+    pageId: token.pageId,
+  };
 }

@@ -1,225 +1,1086 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
+import type React from "react"
+import { useState, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Wand2, Shuffle, Maximize2, Sparkles, Square, RectangleVertical } from "lucide-react"
-import { templateDataset, type Template } from "../lib/template-dataset"
-import { TemplateGenerator } from "../lib/template-generator"
-import TemplatePreview from "./template-preview"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
+import { Save, Upload, Download, Maximize2, X, Palette, Type, ImageIcon, Undo, Redo, Wand2, Layers, AlignCenter, AlignLeft, AlignRight, Copy, Trash2, Eye, EyeOff, Square, RefreshCw } from 'lucide-react'
+import { colorSchemes, type Template } from "../lib/template-dataset"
+import Image from "next/image"
+import { Logo } from "@/components/logo"
 
-interface TemplateSectionProps {
-  templates?: Template[]
-  prompt: string
+interface AdvancedTemplateEditorProps {
+  template: Template
+  onSave?: (template: Template) => void
+  onClose?: () => void
 }
 
-export default function TemplateSectionEnhanced({ templates, prompt }: TemplateSectionProps) {
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
-  const [generatedTemplates, setGeneratedTemplates] = useState<Template[]>(templates || [])
-  const [isFullscreenPreview, setIsFullscreenPreview] = useState(false)
+interface Layer {
+  id: string
+  type: "text" | "image" | "shape"
+  content: string
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  opacity: number
+  visible: boolean
+  style: {
+    fontSize?: number
+    fontFamily?: string
+    fontWeight?: string
+    color?: string
+    backgroundColor?: string
+    borderRadius?: number
+    border?: string
+    textAlign?: "left" | "center" | "right"
+  }
+}
 
-  const generateFromText = () => {
+export default function AdvancedTemplateEditor({ template, onSave, onClose }: AdvancedTemplateEditorProps) {
+  const [editedTemplate, setEditedTemplate] = useState<Template>(template)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [activeTab, setActiveTab] = useState("design")
+  const [history, setHistory] = useState<Template[]>([template])
+  const [historyIndex, setHistoryIndex] = useState(0)
+  const [layers, setLayers] = useState<Layer[]>([])
+  const [selectedLayer, setSelectedLayer] = useState<string | null>(null)
+  const [isGeneratingBackground, setIsGeneratingBackground] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const backgroundInputRef = useRef<HTMLInputElement>(null)
+
+  const updateTemplate = useCallback(
+    (updates: Partial<Template["data"]>) => {
+      const newTemplate = {
+        ...editedTemplate,
+        data: { ...editedTemplate.data, ...updates },
+      }
+      setEditedTemplate(newTemplate)
+
+      // Add to history
+      const newHistory = history.slice(0, historyIndex + 1)
+      newHistory.push(newTemplate)
+      setHistory(newHistory)
+      setHistoryIndex(newHistory.length - 1)
+    },
+    [editedTemplate, history, historyIndex],
+  )
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1)
+      setEditedTemplate(history[historyIndex - 1])
+    }
+  }
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1)
+      setEditedTemplate(history[historyIndex + 1])
+    }
+  }
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        updateTemplate({ imageUrl: e.target?.result as string })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleBackgroundUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        updateTemplate({ imageUrl: e.target?.result as string })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const generateAIBackground = async (prompt: string) => {
     if (!prompt.trim()) return
-    const newTemplate = TemplateGenerator.generateFromText(prompt)
-    setGeneratedTemplates((prev) => [newTemplate, ...prev])
-    setSelectedTemplate(newTemplate)
+    
+    setIsGeneratingBackground(true)
+    try {
+      // Generate unique seed for each generation
+      const seed = Date.now()
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}`
+      updateTemplate({ imageUrl })
+    } catch (error) {
+      console.error("Failed to generate background:", error)
+    } finally {
+      setIsGeneratingBackground(false)
+    }
   }
 
-  const generateRandom = () => {
-    const newTemplate = TemplateGenerator.generateRandom()
-    setGeneratedTemplates((prev) => [newTemplate, ...prev])
-    setSelectedTemplate(newTemplate)
+  const generateSmartBackground = () => {
+    const { data } = editedTemplate
+    let smartPrompt = ""
+
+    // Generate context-aware prompts based on template data
+    if (data.layout === "poster" || data.layout === "sale") {
+      smartPrompt = `${data.title || "summer"} ${data.subtitle || "sale"} background scene`
+    } else if (data.profession) {
+      smartPrompt = `professional ${data.profession.toLowerCase()} workspace background`
+    } else if (data.name) {
+      smartPrompt = `professional portrait background for ${data.name.toLowerCase()}`
+    } else {
+      smartPrompt = `professional business background ${data.style || "modern"} style`
+    }
+
+    generateAIBackground(smartPrompt)
   }
 
-  const handleFullscreenPreview = (template: Template) => {
-    setSelectedTemplate(template)
-    setIsFullscreenPreview(true)
+  const addLayer = (type: Layer["type"]) => {
+    const newLayer: Layer = {
+      id: `layer-${Date.now()}`,
+      type,
+      content: type === "text" ? "New Text" : type === "image" ? "" : "shape",
+      x: 50,
+      y: 50,
+      width: type === "text" ? 200 : 100,
+      height: type === "text" ? 50 : 100,
+      rotation: 0,
+      opacity: 1,
+      visible: true,
+      style: {
+        fontSize: 16,
+        fontFamily: "Arial",
+        fontWeight: "normal",
+        color: "#000000",
+        backgroundColor: type === "shape" ? "#ffffff" : "transparent",
+        borderRadius: 0,
+        textAlign: "center",
+      },
+    }
+    setLayers([...layers, newLayer])
+    setSelectedLayer(newLayer.id)
+  }
+
+  const updateLayer = (layerId: string, updates: Partial<Layer>) => {
+    setLayers(layers.map((layer) => (layer.id === layerId ? { ...layer, ...updates } : layer)))
+  }
+
+  const deleteLayer = (layerId: string) => {
+    setLayers(layers.filter((layer) => layer.id !== layerId))
+    if (selectedLayer === layerId) {
+      setSelectedLayer(null)
+    }
+  }
+
+  const duplicateLayer = (layerId: string) => {
+    const layer = layers.find((l) => l.id === layerId)
+    if (layer) {
+      const newLayer = {
+        ...layer,
+        id: `layer-${Date.now()}`,
+        x: layer.x + 10,
+        y: layer.y + 10,
+      }
+      setLayers([...layers, newLayer])
+    }
+  }
+
+  const handleSave = () => {
+    onSave?.(editedTemplate)
+    localStorage.setItem(`template-${editedTemplate.id}`, JSON.stringify(editedTemplate))
+  }
+
+  const handleExport = () => {
+    const dataStr = JSON.stringify(editedTemplate, null, 2)
+    const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr)
+    const exportFileDefaultName = `${editedTemplate.data.name?.toLowerCase().replace(/\s+/g, "-") || "template"}-template.json`
+
+    const linkElement = document.createElement("a")
+    linkElement.setAttribute("href", dataUri)
+    linkElement.setAttribute("download", exportFileDefaultName)
+    linkElement.click()
+  }
+
+  const currentColorScheme = colorSchemes[editedTemplate.data.colorScheme as keyof typeof colorSchemes]
+
+  const renderTemplate = () => {
+    const { data } = editedTemplate
+
+    const getContainerClass = () => {
+      switch (data.format) {
+        case "square":
+          return "w-96 h-96"
+        case "vertical":
+          return "w-80 h-[568px]"
+        case "horizontal":
+          return "w-full max-w-6xl h-80"
+        default:
+          return "w-full max-w-4xl h-96"
+      }
+    }
+
+    // Render different layouts based on template type
+    if (data.layout === "poster" || data.layout === "sale") {
+      return (
+        <div
+          className={`${getContainerClass()} relative overflow-hidden rounded-lg`}
+          style={{
+            backgroundImage: `url(${data.imageUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          {/* Overlay */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(to right, ${currentColorScheme.from}${Math.round(
+                (data.overlayOpacity || 0.9) * 255,
+              )
+                .toString(16)
+                .padStart(2, "0")}, ${currentColorScheme.to}${Math.round((data.overlayOpacity || 0.9) * 255)
+                .toString(16)
+                .padStart(2, "0")})`,
+            }}
+          />
+
+          {/* Content */}
+          <div className="relative z-10 h-full flex items-center justify-center p-8">
+            <div
+              className="text-center p-6 rounded-lg"
+              style={{
+                backgroundColor: data.backgroundColor || "#F5F5DC",
+                borderRadius: `${data.borderRadius || 8}px`,
+                boxShadow: data.shadow ? "0 10px 25px rgba(0,0,0,0.2)" : "none",
+                color: data.textColor || "#000000",
+              }}
+            >
+              {data.title && (
+                <h1
+                  className="mb-2"
+                  style={{
+                    fontSize: data.fontSize === "large" ? "4rem" : "3rem",
+                    fontFamily: data.fontFamily === "mixed" ? "Dancing Script, cursive" : "Arial, sans-serif",
+                    fontWeight: data.fontWeight || "bold",
+                    textAlign: data.alignment || "center",
+                  }}
+                >
+                  {data.title}
+                </h1>
+              )}
+
+              {data.subtitle && (
+                <h2
+                  className="mb-4"
+                  style={{
+                    fontSize: data.fontSize === "large" ? "3rem" : "2rem",
+                    fontFamily: "Arial Black, sans-serif",
+                    fontWeight: "900",
+                    textAlign: data.alignment || "center",
+                    letterSpacing: "0.1em",
+                    WebkitTextStroke: "2px white",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  {data.subtitle}
+                </h2>
+              )}
+
+              {data.subtext && (
+                <p
+                  className="mb-4"
+                  style={{
+                    fontSize: "1.5rem",
+                    fontWeight: "bold",
+                    textAlign: data.alignment || "center",
+                  }}
+                >
+                  {data.subtext}
+                </p>
+              )}
+
+              {data.cta && (
+                <button
+                  className="px-6 py-3 rounded-lg font-bold text-lg transition-all hover:scale-105"
+                  style={{
+                    backgroundColor: "#ffffff",
+                    color: "#000000",
+                    border: "2px solid #000000",
+                  }}
+                >
+                  {data.cta}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Render additional layers */}
+          {layers.map((layer) => (
+            <div
+              key={layer.id}
+              className={`absolute ${selectedLayer === layer.id ? "ring-2 ring-blue-500" : ""}`}
+              style={{
+                left: `${layer.x}px`,
+                top: `${layer.y}px`,
+                width: `${layer.width}px`,
+                height: `${layer.height}px`,
+                transform: `rotate(${layer.rotation}deg)`,
+                opacity: layer.opacity,
+                display: layer.visible ? "block" : "none",
+                cursor: "move",
+              }}
+              onClick={() => setSelectedLayer(layer.id)}
+            >
+              {layer.type === "text" && (
+                <div
+                  style={{
+                    ...layer.style,
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent:
+                      layer.style.textAlign === "center"
+                        ? "center"
+                        : layer.style.textAlign === "right"
+                          ? "flex-end"
+                          : "flex-start",
+                  }}
+                >
+                  {layer.content}
+                </div>
+              )}
+              {layer.type === "shape" && (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    backgroundColor: layer.style.backgroundColor,
+                    borderRadius: `${layer.style.borderRadius}px`,
+                    border: layer.style.border,
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (data.layout === "logo") {
+      const variant = editedTemplate.id === "creative-minds-bold-logo"
+        ? "creative-minds-bold"
+        : editedTemplate.id === "creative-minds-luxury-logo"
+          ? "creative-minds-luxury"
+          : editedTemplate.id === "creative-minds-design-logo"
+            ? "creative-minds-minimal"
+            : undefined
+
+      if (variant) {
+        return (
+          <div className={`${getContainerClass()} relative overflow-hidden rounded-lg flex items-center justify-center`}>
+            <Logo size="lg" animated={false} variant={variant as any} />
+          </div>
+        )
+      }
+    }
+
+    // Default template rendering for other layouts
+    return (
+      <div
+        className={`${getContainerClass()} relative overflow-hidden rounded-lg`}
+        style={{
+          background: `linear-gradient(to right, ${currentColorScheme.from}, ${currentColorScheme.to})`,
+        }}
+      >
+        <div className="h-full flex items-center justify-center p-8">
+          <div className="grid grid-cols-2 gap-8 items-center w-full">
+            <div className="flex justify-center">
+              <div className="w-32 h-32 rounded-full overflow-hidden bg-white/20 backdrop-blur-sm">
+                <Image
+                  src={data.imageUrl || "/placeholder.svg?height=128&width=128"}
+                  alt="Profile Photo"
+                  width={128}
+                  height={128}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h1 className="text-4xl font-bold text-gray-800">{data.name || data.title || "Template"}</h1>
+              <p className="text-lg text-gray-600">{data.profession || data.subtitle || "Professional Template"}</p>
+              <div className="w-px h-8 bg-gray-400"></div>
+              <blockquote className="text-sm text-gray-600 font-light leading-relaxed">
+                {(data.quote || data.subtext || "Excellence in every detail").split("\n").map((line, index) => (
+                  <span key={index}>
+                    "{line}"{index < (data.quote || data.subtext || "").split("\n").length - 1 && <br />}
+                  </span>
+                ))}
+              </blockquote>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <div className="flex justify-between items-center mb-4">
-        <Label className="text-base font-semibold">Professional Templates</Label>
-        <div className="flex gap-2">
-          <Button onClick={generateFromText} size="sm" variant="outline" disabled={!prompt.trim()}>
-            <Wand2 className="w-4 h-4 mr-1" />
-            From Text
-          </Button>
-          <Button onClick={generateRandom} size="sm" variant="outline">
-            <Shuffle className="w-4 h-4 mr-1" />
-            Random
-          </Button>
-        </div>
-      </div>
-
-      {selectedTemplate && (
-        <div className="mb-6">
-          <h3 className="text-sm font-medium mb-2">Selected Template</h3>
-          <Card className="border-2 border-blue-200">
-            <CardContent className="p-4">
-              <TemplatePreview template={selectedTemplate} className="h-48" />
-              <div className="mt-3 flex justify-between items-center">
-                <div>
-                  <p className="font-medium text-sm">{selectedTemplate.name}</p>
-                  <p className="text-xs text-gray-600">{selectedTemplate.description}</p>
-                  <div className="flex gap-1 mt-1">
-                    <Badge variant="outline" className="text-xs">
-                      {selectedTemplate.data.format}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {selectedTemplate.data.layout}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => handleFullscreenPreview(selectedTemplate)} size="sm" variant="outline">
-                    <Maximize2 className="w-4 h-4 mr-1" />
-                    View
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">Available Templates</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* Pre-built templates */}
-          {templateDataset.slice(0, 6).map((template) => (
-            <Card
-              key={template.id}
-              className={`cursor-pointer transition-all hover:shadow-md ${
-                selectedTemplate?.id === template.id ? "ring-2 ring-blue-500" : ""
-              }`}
-            >
-              <CardContent className="p-3">
-                <TemplatePreview template={template} className="h-32" />
-                <div className="mt-2 flex justify-between items-center">
-                  <div onClick={() => setSelectedTemplate(template)} className="flex-1 cursor-pointer">
-                    <p className="font-medium text-xs">{template.name}</p>
-                    <p className="text-xs text-gray-600">{template.category}</p>
-                    <div className="flex gap-1 mt-1">
-                      <Badge variant="secondary" className="text-xs">
-                        {template.data.format === "square" && <Square className="w-3 h-3 mr-1" />}
-                        {template.data.format === "vertical" && <RectangleVertical className="w-3 h-3 mr-1" />}
-                        {template.data.format}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      onClick={() => handleFullscreenPreview(template)}
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                    >
-                      <Maximize2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          {/* Generated templates */}
-          {generatedTemplates.slice(0, 2).map((template) => (
-            <Card
-              key={template.id}
-              className={`cursor-pointer transition-all hover:shadow-md border-purple-200 ${
-                selectedTemplate?.id === template.id ? "ring-2 ring-purple-500" : ""
-              }`}
-            >
-              <CardContent className="p-3">
-                <TemplatePreview template={template} className="h-32" />
-                <div className="mt-2 flex items-center justify-between">
-                  <div onClick={() => setSelectedTemplate(template)} className="flex-1 cursor-pointer">
-                    <p className="font-medium text-xs">{template.name}</p>
-                    <p className="text-xs text-gray-600">{template.category}</p>
-                    <div className="flex gap-1 mt-1">
-                      <Badge className="bg-purple-100 text-purple-700 text-xs">AI Generated</Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {template.data.format === "square" && <Square className="w-3 h-3 mr-1" />}
-                        {template.data.format === "vertical" && <RectangleVertical className="w-3 h-3 mr-1" />}
-                        {template.data.format}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      onClick={() => handleFullscreenPreview(template)}
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                    >
-                      <Maximize2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {prompt && (
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <Sparkles className="w-4 h-4 inline mr-1" />
-            Generate a template based on your prompt: "{prompt.slice(0, 100)}..."
-          </p>
-          <div className="flex gap-2 mt-2">
-            <Badge variant="outline" className="text-xs">
-              <Square className="w-3 h-3 mr-1" />
-              Square for Posts
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              <RectangleVertical className="w-3 h-3 mr-1" />
-              Vertical for Stories
-            </Badge>
+    <div className="w-full h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="flex justify-between items-center p-4 bg-white border-b shadow-sm">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-bold">Template Editor</h2>
+          <div className="flex gap-1">
+            {editedTemplate.tags.slice(0, 3).map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
           </div>
         </div>
-      )}
 
-      {/* Fullscreen Preview Dialog */}
-      <Dialog open={isFullscreenPreview} onOpenChange={setIsFullscreenPreview}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full">
-          <DialogHeader>
-            <DialogTitle className="flex justify-between items-center">
-              <span>{selectedTemplate?.name} - Full Screen Preview</span>
-              <div className="flex gap-2">
-                {selectedTemplate && (
-                  <Badge variant="outline">
-                    {selectedTemplate.data.format === "square" && <Square className="w-3 h-3 mr-1" />}
-                    {selectedTemplate.data.format === "vertical" && <RectangleVertical className="w-3 h-3 mr-1" />}
-                    {selectedTemplate.data.format}
-                  </Badge>
-                )}
+        <div className="flex items-center gap-2">
+          <Button onClick={undo} disabled={historyIndex === 0} size="sm" variant="outline">
+            <Undo className="w-4 h-4" />
+          </Button>
+          <Button onClick={redo} disabled={historyIndex === history.length - 1} size="sm" variant="outline">
+            <Redo className="w-4 h-4" />
+          </Button>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Maximize2 className="w-4 h-4 mr-2" />
+                Preview
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full">
+              <DialogHeader>
+                <DialogTitle className="flex justify-between items-center">
+                  <span>{editedTemplate.name} - Full Preview</span>
+                  <Button onClick={() => setIsFullscreen(false)} size="sm" variant="ghost">
+                    <X className="w-4 h-4" />
+                  </Button>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 flex items-center justify-center p-8 bg-gray-100 rounded-lg overflow-auto">
+                {renderTemplate()}
               </div>
-            </DialogTitle>
-          </DialogHeader>
-          {selectedTemplate && (
-            <div className="flex-1 flex items-center justify-center p-8 rounded-lg overflow-auto">
-              <div
-                className={`${
-                  selectedTemplate.data.format === "square"
-                    ? "w-96 h-96"
-                    : selectedTemplate.data.format === "vertical"
-                      ? "w-80 h-[568px]"
-                      : "w-full max-w-4xl h-96"
-                }`}
+            </DialogContent>
+          </Dialog>
+
+          <Button onClick={handleSave} size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Save className="w-4 h-4 mr-2" />
+            Save
+          </Button>
+          <Button onClick={handleExport} size="sm" variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          {onClose && (
+            <Button onClick={onClose} size="sm" variant="ghost">
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 flex">
+        {/* Left Sidebar - Tools */}
+        <div className="w-80 bg-white border-r overflow-y-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-5 p-1">
+              <TabsTrigger value="design" className="text-xs">
+                <Palette className="w-3 h-3 mr-1" />
+                Design
+              </TabsTrigger>
+              <TabsTrigger value="text" className="text-xs">
+                <Type className="w-3 h-3 mr-1" />
+                Text
+              </TabsTrigger>
+              <TabsTrigger value="media" className="text-xs">
+                <ImageIcon className="w-3 h-3 mr-1" />
+                Media
+              </TabsTrigger>
+              <TabsTrigger value="elements" className="text-xs">
+                <Square className="w-3 h-3 mr-1" />
+                Elements
+              </TabsTrigger>
+              <TabsTrigger value="layers" className="text-xs">
+                <Layers className="w-3 h-3 mr-1" />
+                Layers
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="p-4">
+              <TabsContent value="design" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">AI Background Generator</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Describe your background</Label>
+                      <Textarea
+                        placeholder="e.g., beautiful sunset beach, modern office space, creative art studio..."
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        className="text-xs mt-1"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        onClick={() => generateAIBackground(aiPrompt)}
+                        variant="outline"
+                        size="sm"
+                        disabled={isGeneratingBackground || !aiPrompt.trim()}
+                      >
+                        {isGeneratingBackground ? (
+                          <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                        ) : (
+                          <Wand2 className="w-3 h-3 mr-1" />
+                        )}
+                        Generate
+                      </Button>
+                      <Button
+                        onClick={generateSmartBackground}
+                        variant="outline"
+                        size="sm"
+                        disabled={isGeneratingBackground}
+                      >
+                        <Wand2 className="w-3 h-3 mr-1" />
+                        Smart AI
+                      </Button>
+                    </div>
+                    <Button
+                      onClick={() => backgroundInputRef.current?.click()}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      <Upload className="w-3 h-3 mr-1" />
+                      Upload Image
+                    </Button>
+                    <input
+                      ref={backgroundInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBackgroundUpload}
+                      className="hidden"
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Quick AI Backgrounds</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        "summer beach sunset",
+                        "modern office workspace", 
+                        "creative art studio",
+                        "mountain landscape",
+                        "city skyline night",
+                        "abstract geometric",
+                        "nature forest",
+                        "minimalist white"
+                      ].map((prompt) => (
+                        <Button
+                          key={prompt}
+                          onClick={() => generateAIBackground(prompt)}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          disabled={isGeneratingBackground}
+                        >
+                          {prompt}
+                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Colors</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(colorSchemes).map(([key, scheme]) => (
+                        <Button
+                          key={key}
+                          onClick={() => updateTemplate({ colorScheme: key })}
+                          variant={editedTemplate.data.colorScheme === key ? "default" : "outline"}
+                          size="sm"
+                          className="justify-start text-xs"
+                        >
+                          <div
+                            className="w-3 h-3 rounded-full mr-2"
+                            style={{ background: `linear-gradient(to right, ${scheme.from}, ${scheme.to})` }}
+                          />
+                          {scheme.name}
+                        </Button>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs">Text Color</Label>
+                      <input
+                        type="color"
+                        value={editedTemplate.data.textColor || "#000000"}
+                        onChange={(e) => updateTemplate({ textColor: e.target.value })}
+                        className="w-full h-8 rounded border"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs">Background Color</Label>
+                      <input
+                        type="color"
+                        value={editedTemplate.data.backgroundColor || "#F5F5DC"}
+                        onChange={(e) => updateTemplate({ backgroundColor: e.target.value })}
+                        className="w-full h-8 rounded border"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Effects</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Overlay Opacity</Label>
+                      <Slider
+                        value={[editedTemplate.data.overlayOpacity || 0.9]}
+                        onValueChange={([value]) => updateTemplate({ overlayOpacity: value })}
+                        max={1}
+                        min={0}
+                        step={0.1}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs">Border Radius</Label>
+                      <Slider
+                        value={[editedTemplate.data.borderRadius || 8]}
+                        onValueChange={([value]) => updateTemplate({ borderRadius: value })}
+                        max={50}
+                        min={0}
+                        step={1}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Drop Shadow</Label>
+                      <Switch
+                        checked={editedTemplate.data.shadow || false}
+                        onCheckedChange={(checked) => updateTemplate({ shadow: checked })}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="text" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Text Content</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Name</Label>
+                      <Input
+                        value={editedTemplate.data.name || ""}
+                        onChange={(e) => updateTemplate({ name: e.target.value })}
+                        placeholder="Enter name"
+                        className="text-xs mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Profession</Label>
+                      <Input
+                        value={editedTemplate.data.profession || ""}
+                        onChange={(e) => updateTemplate({ profession: e.target.value })}
+                        placeholder="Enter profession"
+                        className="text-xs mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Title</Label>
+                      <Input
+                        value={editedTemplate.data.title || ""}
+                        onChange={(e) => updateTemplate({ title: e.target.value })}
+                        placeholder="Enter title"
+                        className="text-xs mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Subtitle</Label>
+                      <Input
+                        value={editedTemplate.data.subtitle || ""}
+                        onChange={(e) => updateTemplate({ subtitle: e.target.value })}
+                        placeholder="Enter subtitle"
+                        className="text-xs mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Quote/Subtext</Label>
+                      <Textarea
+                        value={editedTemplate.data.quote || editedTemplate.data.subtext || ""}
+                        onChange={(e) => updateTemplate({ quote: e.target.value, subtext: e.target.value })}
+                        placeholder="Enter quote or subtext"
+                        className="text-xs mt-1"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Call to Action</Label>
+                      <Input
+                        value={editedTemplate.data.cta || ""}
+                        onChange={(e) => updateTemplate({ cta: e.target.value })}
+                        placeholder="Enter CTA"
+                        className="text-xs mt-1"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Typography</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Font Family</Label>
+                      <select
+                        value={editedTemplate.data.fontFamily || "Arial"}
+                        onChange={(e) => updateTemplate({ fontFamily: e.target.value })}
+                        className="w-full p-2 text-xs border rounded mt-1"
+                      >
+                        <option value="Arial">Arial</option>
+                        <option value="mixed">Mixed (Script + Sans)</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Times">Times New Roman</option>
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Courier">Courier New</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Font Size</Label>
+                      <select
+                        value={editedTemplate.data.fontSize || "medium"}
+                        onChange={(e) => updateTemplate({ fontSize: e.target.value })}
+                        className="w-full p-2 text-xs border rounded mt-1"
+                      >
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                        <option value="extra-large">Extra Large</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Text Alignment</Label>
+                      <div className="flex gap-1 mt-1">
+                        <Button
+                          size="sm"
+                          variant={editedTemplate.data.alignment === "left" ? "default" : "outline"}
+                          onClick={() => updateTemplate({ alignment: "left" })}
+                        >
+                          <AlignLeft className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={editedTemplate.data.alignment === "center" ? "default" : "outline"}
+                          onClick={() => updateTemplate({ alignment: "center" })}
+                        >
+                          <AlignCenter className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={editedTemplate.data.alignment === "right" ? "default" : "outline"}
+                          onClick={() => updateTemplate({ alignment: "right" })}
+                        >
+                          <AlignRight className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="media" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Profile Images</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Profile Image
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+
+                    <div>
+                      <Label className="text-xs">AI Profile Image</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-1">
+                        {[
+                          "professional headshot",
+                          "creative portrait",
+                          "business photo",
+                          "artistic portrait",
+                          "casual photo",
+                          "studio portrait"
+                        ].map((prompt) => (
+                          <Button
+                            key={prompt}
+                            onClick={() => {
+                              const fullPrompt = `${prompt} ${editedTemplate.data.profession || "professional"}`
+                              const seed = Date.now()
+                              const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=400&height=400&seed=${seed}`
+                              updateTemplate({ imageUrl })
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                          >
+                            {prompt}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="elements" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Add Elements</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button
+                      onClick={() => addLayer("text")}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                    >
+                      <Type className="w-4 h-4 mr-2" />
+                      Add Text
+                    </Button>
+                    <Button
+                      onClick={() => addLayer("shape")}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                    >
+                      <Square className="w-4 h-4 mr-2" />
+                      Add Shape
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="layers" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Layers</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {layers.map((layer) => (
+                      <div
+                        key={layer.id}
+                        className={`flex items-center gap-2 p-2 rounded border ${
+                          selectedLayer === layer.id ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                        }`}
+                        onClick={() => setSelectedLayer(layer.id)}
+                      >
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => updateLayer(layer.id, { visible: !layer.visible })}
+                        >
+                          {layer.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                        </Button>
+                        <span className="flex-1 text-xs truncate">{layer.content}</span>
+                        <Button size="sm" variant="ghost" onClick={() => duplicateLayer(layer.id)}>
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteLayer(layer.id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {selectedLayer && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Layer Properties</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {(() => {
+                        const layer = layers.find((l) => l.id === selectedLayer)
+                        if (!layer) return null
+
+                        return (
+                          <>
+                            {layer.type === "text" && (
+                              <div>
+                                <Label className="text-xs">Text Content</Label>
+                                <Input
+                                  value={layer.content}
+                                  onChange={(e) => updateLayer(layer.id, { content: e.target.value })}
+                                  className="text-xs mt-1"
+                                />
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              <Label className="text-xs">Opacity</Label>
+                              <Slider
+                                value={[layer.opacity]}
+                                onValueChange={([value]) => updateLayer(layer.id, { opacity: value })}
+                                max={1}
+                                min={0}
+                                step={0.1}
+                                className="w-full"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-xs">Rotation</Label>
+                              <Slider
+                                value={[layer.rotation]}
+                                onValueChange={([value]) => updateLayer(layer.id, { rotation: value })}
+                                max={360}
+                                min={-360}
+                                step={1}
+                                className="w-full"
+                              />
+                            </div>
+                          </>
+                        )
+                      })()}
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </div>
+          </Tabs>
+        </div>
+
+        {/* Main Canvas */}
+        <div className="flex-1 flex items-center justify-center p-8 bg-gray-100">
+          <div className="relative">{renderTemplate()}</div>
+        </div>
+
+        {/* Right Sidebar - Properties */}
+        <div className="w-64 bg-white border-l p-4 overflow-y-auto">
+          <h3 className="font-semibold mb-4">Template Properties</h3>
+
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">Format</Label>
+              <select
+                value={editedTemplate.data.format}
+                onChange={(e) => updateTemplate({ format: e.target.value as any })}
+                className="w-full p-2 text-sm border rounded mt-1"
               >
-                <TemplatePreview template={selectedTemplate} className="w-full h-full" />
+                <option value="classic">Classic (4:3)</option>
+                <option value="square">Square (1:1)</option>
+                <option value="vertical">Vertical (9:16)</option>
+                <option value="horizontal">Horizontal (16:9)</option>
+              </select>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Layout Style</Label>
+              <select
+                value={editedTemplate.data.layout}
+                onChange={(e) => updateTemplate({ layout: e.target.value as any })}
+                className="w-full p-2 text-sm border rounded mt-1"
+              >
+                <option value="classic">Classic</option>
+                <option value="modern">Modern</option>
+                <option value="minimal">Minimal</option>
+                <option value="creative">Creative</option>
+                <option value="poster">Poster</option>
+                <option value="sale">Sale</option>
+              </select>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Style</Label>
+              <select
+                value={editedTemplate.data.style || "modern"}
+                onChange={(e) => updateTemplate({ style: e.target.value as any })}
+                className="w-full p-2 text-sm border rounded mt-1"
+              >
+                <option value="modern">Modern</option>
+                <option value="vintage">Vintage</option>
+                <option value="playful">Playful</option>
+                <option value="elegant">Elegant</option>
+                <option value="bold">Bold</option>
+              </select>
+            </div>
+
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium mb-2">Current Image</h4>
+              <div className="w-full h-32 rounded border overflow-hidden bg-gray-100">
+                <Image
+                  src={editedTemplate.data.imageUrl || "/placeholder.svg?height=128&width=200"}
+                  alt="Current template image"
+                  width={200}
+                  height={128}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </motion.div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

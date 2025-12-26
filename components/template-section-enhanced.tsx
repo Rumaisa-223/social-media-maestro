@@ -20,7 +20,7 @@ import {
 import { templateDataset, type Template } from "../lib/template-dataset"
 import { TemplateGenerator } from "../lib/template-generator"
 import TemplatePreview from "./template-preview"
-import TemplateEditor from "./template-editor"
+import AdvancedTemplateEditor from "./template-editor"
 
 interface TemplateSectionProps {
   templates?: Template[]
@@ -33,13 +33,6 @@ export default function TemplateSectionEnhanced({ templates, prompt }: TemplateS
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
   const [isFullscreenPreview, setIsFullscreenPreview] = useState(false)
-
-  // Debug: Log available templates
-  console.log(
-    "Template dataset in section:",
-    templateDataset.length,
-    templateDataset.map((t) => t.name),
-  )
 
   const generateFromText = () => {
     if (!prompt.trim()) return
@@ -90,6 +83,20 @@ export default function TemplateSectionEnhanced({ templates, prompt }: TemplateS
     }
   }
 
+  // Add layout icon support
+  const getLayoutIcon = (layout: string) => {
+    switch (layout) {
+      case "logo":
+        return <Sparkles className="w-3 h-3 mr-1" />
+      case "poster":
+        return <Square className="w-3 h-3 mr-1" />
+      case "sale":
+        return <Square className="w-3 h-3 mr-1" />
+      default:
+        return null
+    }
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="flex justify-between items-center mb-4">
@@ -122,6 +129,7 @@ export default function TemplateSectionEnhanced({ templates, prompt }: TemplateS
                       {selectedTemplate.data.format}
                     </Badge>
                     <Badge variant="outline" className="text-xs">
+                      {getLayoutIcon(selectedTemplate.data.layout)}
                       {selectedTemplate.data.layout}
                     </Badge>
                   </div>
@@ -146,7 +154,7 @@ export default function TemplateSectionEnhanced({ templates, prompt }: TemplateS
         <h3 className="text-sm font-medium">Available Templates</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Pre-built templates */}
-          {templateDataset.slice(0, 6).map((template) => (
+          {templateDataset.map((template) => (
             <Card
               key={template.id}
               className={`cursor-pointer transition-all hover:shadow-md ${
@@ -164,9 +172,13 @@ export default function TemplateSectionEnhanced({ templates, prompt }: TemplateS
                         {getFormatIcon(template.data.format)}
                         {template.data.format}
                       </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {getLayoutIcon(template.data.layout)}
+                        {template.data.layout}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
                     <Button
                       onClick={() => handleFullscreenPreview(template)}
                       size="sm"
@@ -190,7 +202,7 @@ export default function TemplateSectionEnhanced({ templates, prompt }: TemplateS
           ))}
 
           {/* Generated templates */}
-          {generatedTemplates.slice(0, 2).map((template) => (
+          {generatedTemplates.map((template) => (
             <Card
               key={template.id}
               className={`cursor-pointer transition-all hover:shadow-md border-purple-200 ${
@@ -208,6 +220,10 @@ export default function TemplateSectionEnhanced({ templates, prompt }: TemplateS
                       <Badge variant="secondary" className="text-xs">
                         {getFormatIcon(template.data.format)}
                         {template.data.format}
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {getLayoutIcon(template.data.layout)}
+                        {template.data.layout}
                       </Badge>
                     </div>
                   </div>
@@ -263,7 +279,7 @@ export default function TemplateSectionEnhanced({ templates, prompt }: TemplateS
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0">
           {editingTemplate && (
-            <TemplateEditor
+            <AdvancedTemplateEditor
               template={editingTemplate}
               onSave={handleSaveTemplate}
               onClose={() => setIsEditorOpen(false)}

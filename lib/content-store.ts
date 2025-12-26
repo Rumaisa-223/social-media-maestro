@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export interface SelectedAssets {
+  contentItemId?: string;
   caption?: string;
   hashtags?: string[];
   images?: string;
@@ -23,6 +24,7 @@ interface ContentState {
 
 export const useContentStore = create<ContentState>((set) => ({
   selectedAssets: {
+    contentItemId: undefined,
     caption: undefined,
     hashtags: undefined,
     images: undefined,

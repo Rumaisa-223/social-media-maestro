@@ -15,7 +15,6 @@ import {
   Plus,
   Search,
   Twitter,
-  Youtube,
   AlertTriangle,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -23,6 +22,15 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { InstagramIcon as TiktokIcon } from "lucide-react";
+
+type ScheduledPost = {
+  id: string;
+  title: string;
+  date: Date;
+  time: string;
+  platform: string;
+  isHighPerforming: boolean;
+};
 
 export function CalendarScheduler() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -55,7 +63,7 @@ export function CalendarScheduler() {
       case "facebook": return "border-blue-500 bg-blue-50 text-blue-700";
       case "twitter": return "border-sky-500 bg-sky-50 text-sky-700";
       case "linkedin": return "border-blue-700 bg-blue-50 text-blue-700";
-      case "youtube": return "border-red-500 bg-red-50 text-red-700";
+      case "youtube": return "border-gray-500 bg-gray-50 text-gray-700";
       case "tiktok": return "border-gray-800 bg-gray-50 text-gray-800";
       default: return "border-gray-500 bg-gray-50 text-gray-700";
     }
@@ -67,44 +75,45 @@ export function CalendarScheduler() {
       case "facebook": return <Facebook className="h-3 w-3" />;
       case "twitter": return <Twitter className="h-3 w-3" />;
       case "linkedin": return <Linkedin className="h-3 w-3" />;
-      case "youtube": return <Youtube className="h-3 w-3" />;
+      case "youtube": return null;
       case "tiktok": return <TiktokIcon className="h-3 w-3" />;
       default: return null;
     }
   };
 
-  // Sample scheduled posts data
-  const scheduledPosts = [
-    { id: 1, title: "Spring Collection Teaser", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1), time: "10:30 AM", platform: "instagram", isHighPerforming: true },
-    { id: 2, title: "Industry News Update", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 2), time: "2:15 PM", platform: "twitter", isHighPerforming: false },
-    { id: 3, title: "Weekend Special Offer", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 4), time: "9:00 AM", platform: "facebook", isHighPerforming: false },
-    { id: 4, title: "Industry Insights Article", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 7), time: "11:00 AM", platform: "linkedin", isHighPerforming: false },
-    { id: 5, title: "Product Demo Challenge", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 9), time: "3:30 PM", platform: "tiktok", isHighPerforming: false },
-    { id: 6, title: "Product Tutorial Video", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 11), time: "2:00 PM", platform: "youtube", isHighPerforming: true },
-    { id: 7, title: "Customer Testimonial", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 14), time: "12:45 PM", platform: "instagram", isHighPerforming: false },
-    { id: 8, title: "Community Spotlight", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 16), time: "10:00 AM", platform: "facebook", isHighPerforming: false },
-    { id: 9, title: "Industry Chat Thread", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 18), time: "1:30 PM", platform: "twitter", isHighPerforming: false },
-    { id: 10, title: "Case Study Publication", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 21), time: "9:30 AM", platform: "linkedin", isHighPerforming: false },
-    { id: 11, title: "Expert Interview Series", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 23), time: "4:00 PM", platform: "youtube", isHighPerforming: false },
-    { id: 12, title: "Product Launch Announcement", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 25), time: "11:15 AM", platform: "instagram", isHighPerforming: true },
-    { id: 13, title: "Weekend Event Reminder", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 25), time: "3:30 PM", platform: "facebook", isHighPerforming: false },
-    { id: 14, title: "Behind the Scenes", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 28), time: "2:45 PM", platform: "tiktok", isHighPerforming: false },
-    { id: 15, title: "Monthly Recap Thread", date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 30), time: "10:00 AM", platform: "twitter", isHighPerforming: false },
-  ];
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
 
   useEffect(() => {
-    // Mock content balance analysis
-    const analyzeBalance = () => {
-      const postTypes = scheduledPosts.map((post) => post.title.toLowerCase());
-      const productPosts = postTypes.filter((title) => title.includes("product") || title.includes("sale")).length;
-      if (productPosts > scheduledPosts.length * 0.5) {
-        setBalanceWarning("Too many product posts this month—add an educational video for balance.");
-      } else {
-        setBalanceWarning("");
-      }
+    let timer: any;
+    const fetchSchedules = async () => {
+      try {
+        const res = await fetch("/api/schedules");
+        if (!res.ok) return;
+        const data = await res.json();
+        const items: ScheduledPost[] = (data.schedules || []).map((s: any) => {
+          const dt = new Date(s.scheduledFor);
+          const time = dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+          const title = s.contentItem?.metadata?.caption || "Scheduled post";
+          const platform = String(s.socialAccount?.provider || "unknown").toLowerCase();
+          return { id: s.id, title, date: dt, time, platform, isHighPerforming: false };
+        });
+        setScheduledPosts(items);
+      } catch {}
     };
-    analyzeBalance();
-  }, [currentMonth]);
+    fetchSchedules();
+    timer = setInterval(fetchSchedules, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const postTypes = scheduledPosts.map((post) => post.title.toLowerCase());
+    const productPosts = postTypes.filter((title) => title.includes("product") || title.includes("sale")).length;
+    if (productPosts > scheduledPosts.length * 0.5) {
+      setBalanceWarning("Too many product posts this month—add an educational video for balance.");
+    } else {
+      setBalanceWarning("");
+    }
+  }, [currentMonth, scheduledPosts]);
 
   const getPostsForDay = (day: number) => {
     let posts = scheduledPosts.filter(
@@ -189,14 +198,6 @@ export function CalendarScheduler() {
         >
           <TiktokIcon className="h-3 w-3" />
           <span className="ml-1">TikTok</span>
-        </Badge>
-        <Badge
-          variant={activePlatform === "youtube" ? "default" : "outline"}
-          className="cursor-pointer bg-red-50 text-red-700 border-red-300"
-          onClick={() => setActivePlatform("youtube")}
-        >
-          <Youtube className="h-3 w-3 mr-1" />
-          YouTube
         </Badge>
       </div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

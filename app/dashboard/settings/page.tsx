@@ -1,651 +1,733 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
-import { Facebook, Instagram, Linkedin, Plus, Twitter, X } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Shield, Settings, Bell, Lock, AlertTriangle, Check, X, Edit2, Trash2, Plus, Mail, Smartphone } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+// removed profile session usage
+
+type HashtagGroup = {
+  id: number
+  name: string
+  hashtags: string[]
+}
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("brand")
-  const [brandName, setBrandName] = useState("Your Brand")
-  const [brandDescription, setBrandDescription] = useState(
-    "Your brand description goes here. This helps establish your brand voice and personality.",
-  )
-  const [primaryColor, setPrimaryColor] = useState("#3B82F6")
-  const [secondaryColor, setSecondaryColor] = useState("#10B981")
-  const [hashtags, setHashtags] = useState(["marketing", "branding", "digital"])
+  const { success, error } = useToast()
+  const [activeTab, setActiveTab] = useState("privacy")
+
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+
   const [newHashtag, setNewHashtag] = useState("")
-
-  // Connected accounts state
-  const [connectedAccounts, setConnectedAccounts] = useState({
-    facebook: false,
-    instagram: true,
-    twitter: true,
-    linkedin: false,
-    pinterest: false,
-  })
-
-  // Notification preferences state
-  const [notifications, setNotifications] = useState({
-    email: {
-      accountUpdates: true,
-      marketingNews: false,
-      productUpdates: true,
+  const [hashtags, setHashtags] = useState(["marketing", "branding", "digital"])
+  const [hashtagGroups, setHashtagGroups] = useState<HashtagGroup[]>([
+    {
+      id: 1,
+      name: "Marketing",
+      hashtags: ["marketing", "digital", "strategy"],
     },
-    push: {
-      messageReceived: true,
-      engagementActivity: true,
-      scheduledPosts: false,
+    {
+      id: 2,
+      name: "Product",
+      hashtags: ["product", "innovation", "design"],
     },
-    frequency: "daily",
-  })
+  ])
 
-  // Toggle connected account
-  const toggleAccount = (account: string) => {
-    setConnectedAccounts({
-      ...connectedAccounts,
-      [account]: !connectedAccounts[account as keyof typeof connectedAccounts],
-    })
-  }
+  const [autoSaveDrafts, setAutoSaveDrafts] = useState(true)
+  const [addWatermark, setAddWatermark] = useState(false)
+  const [imageOptimization, setImageOptimization] = useState(true)
 
-  // Toggle notification setting
-  const toggleNotification = (type: string, setting: string) => {
-    setNotifications({
-      ...notifications,
-      [type]: {
-        ...notifications[type as keyof typeof notifications],
-        [setting]:
-          !notifications[type as keyof typeof notifications][
-            setting as keyof (typeof notifications)[keyof typeof notifications]
-          ],
-      },
-    })
-  }
+  // Email Notifications
+  const [emailPostPerformance, setEmailPostPerformance] = useState(true)
+  const [emailWeeklyReports, setEmailWeeklyReports] = useState(true)
+  const [emailMarketingTips, setEmailMarketingTips] = useState(false)
+  
+  // Push Notifications
+  const [pushPostPublished, setPushPostPublished] = useState(true)
+  const [pushEngagementAlerts, setPushEngagementAlerts] = useState(true)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
-  // Add hashtag
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
+  const [isEditGroupOpen, setIsEditGroupOpen] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<HashtagGroup | null>(null)
+  const [groupName, setGroupName] = useState("")
+  const [groupHashtags, setGroupHashtags] = useState<string[]>([])
+  const [groupHashtagInput, setGroupHashtagInput] = useState("")
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/settings")
+        if (!res.ok) return
+        const json = await res.json()
+        if (typeof json.auto_save_drafts === "boolean") setAutoSaveDrafts(json.auto_save_drafts)
+        if (typeof json.add_watermark === "boolean") setAddWatermark(json.add_watermark)
+        if (typeof json.image_optimization === "boolean") setImageOptimization(json.image_optimization)
+        // Email Notifications
+        if (typeof json.email_post_performance === "boolean") setEmailPostPerformance(json.email_post_performance)
+        if (typeof json.email_weekly_reports === "boolean") setEmailWeeklyReports(json.email_weekly_reports)
+        if (typeof json.email_marketing_tips === "boolean") setEmailMarketingTips(json.email_marketing_tips)
+        // Push Notifications
+        if (typeof json.push_post_published === "boolean") setPushPostPublished(json.push_post_published)
+        if (typeof json.push_engagement_alerts === "boolean") setPushEngagementAlerts(json.push_engagement_alerts)
+        if (Array.isArray(json.hashtags)) setHashtags(json.hashtags)
+        if (Array.isArray(json.hashtag_groups)) {
+          const groups = json.hashtag_groups.map((g: any, idx: number) => ({ id: idx + 1, name: g.name, hashtags: g.tags }))
+          setHashtagGroups(groups)
+        }
+      } catch {}
+    }
+    load()
+  }, [])
+
+  // removed profile save functionality
+
+  // removed profile fetch effect
+
+  // removed photo upload handlers
+
   const addHashtag = () => {
-    if (newHashtag && !hashtags.includes(newHashtag)) {
-      setHashtags([...hashtags, newHashtag])
+    if (newHashtag.trim()) {
+      const cleanHashtag = newHashtag.trim().replace(/^#/, "")
+      if (!hashtags.includes(cleanHashtag)) {
+        setHashtags([...hashtags, cleanHashtag])
+        success(`#${cleanHashtag} has been added to your hashtags`)
+      }
       setNewHashtag("")
     }
   }
 
-  // Remove hashtag
   const removeHashtag = (tag: string) => {
-    setHashtags(hashtags.filter((hashtag) => hashtag !== tag))
+    setHashtags(hashtags.filter((h) => h !== tag))
+    success(`#${tag} has been removed`)
   }
 
-  // Handle frequency change
-  const handleFrequencyChange = (frequency: string) => {
-    setNotifications({
-      ...notifications,
-      frequency,
+  const removeHashtagGroup = (id: number) => {
+    const group = hashtagGroups.find((g) => g.id === id)
+    setHashtagGroups(hashtagGroups.filter((g) => g.id !== id))
+    success(`${group?.name} hashtag group has been deleted`)
+  }
+
+  const openCreateGroupDialog = () => {
+    setGroupName("")
+    setGroupHashtags([])
+    setGroupHashtagInput("")
+    setIsCreateGroupOpen(true)
+  }
+
+  const openEditGroupDialog = (group: HashtagGroup) => {
+    setEditingGroup(group)
+    setGroupName(group.name)
+    setGroupHashtags([...group.hashtags])
+    setGroupHashtagInput("")
+    setIsEditGroupOpen(true)
+  }
+
+  const addHashtagToGroup = () => {
+    if (groupHashtagInput.trim()) {
+      const cleanHashtag = groupHashtagInput.trim().replace(/^#/, "")
+      if (!groupHashtags.includes(cleanHashtag)) {
+        setGroupHashtags([...groupHashtags, cleanHashtag])
+      }
+      setGroupHashtagInput("")
+    }
+  }
+
+  const removeHashtagFromGroup = (tag: string) => {
+    setGroupHashtags(groupHashtags.filter((h) => h !== tag))
+  }
+
+  const createHashtagGroup = () => {
+    if (!groupName.trim()) {
+      error("Please enter a group name")
+      return
+    }
+    if (groupHashtags.length === 0) {
+      error("Please add at least one hashtag")
+      return
+    }
+
+    const newGroup: HashtagGroup = {
+      id: Math.max(...hashtagGroups.map((g) => g.id), 0) + 1,
+      name: groupName,
+      hashtags: groupHashtags,
+    }
+    setHashtagGroups([...hashtagGroups, newGroup])
+    setIsCreateGroupOpen(false)
+    success(`${groupName} hashtag group has been created`)
+  }
+
+  const saveEditedGroup = () => {
+    if (!editingGroup) return
+
+    if (!groupName.trim()) {
+      error("Please enter a group name")
+      return
+    }
+    if (groupHashtags.length === 0) {
+      error("Please add at least one hashtag")
+      return
+    }
+
+    setHashtagGroups(
+      hashtagGroups.map((g) => (g.id === editingGroup.id ? { ...g, name: groupName, hashtags: groupHashtags } : g)),
+    )
+    setIsEditGroupOpen(false)
+    success(`${groupName} hashtag group has been updated`)
+  }
+
+  const saveAllSettings = () => {
+    // Password validation
+    if (currentPassword || newPassword || confirmPassword) {
+      if (!currentPassword) {
+        error("Please enter your current password")
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        error("New passwords don't match")
+        return
+      }
+      if (newPassword.length < 8) {
+        error("Password must be at least 8 characters")
+        return
+      }
+    }
+
+    const payload = {
+      auto_save_drafts: autoSaveDrafts,
+      add_watermark: addWatermark,
+      image_optimization: imageOptimization,
+      // Email Notifications
+      email_post_performance: emailPostPerformance,
+      email_weekly_reports: emailWeeklyReports,
+      email_marketing_tips: emailMarketingTips,
+      // Push Notifications
+      push_post_published: pushPostPublished,
+      push_engagement_alerts: pushEngagementAlerts,
+      hashtags,
+      hashtag_groups: hashtagGroups.map((g) => ({ name: g.name, tags: g.hashtags })),
+    }
+    fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     })
+      .then(() => {
+        success("Your settings have been successfully updated")
+        setCurrentPassword("")
+        setNewPassword("")
+        setConfirmPassword("")
+      })
+      .catch(() => {
+        error("Failed to save settings")
+      })
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Brand Manager</h1>
-              <p className="text-sm text-gray-500">Manage your brand settings and preferences</p>
+    <div className="min-h-screen bg-background">
+      {/* Elegant Header with Gradient Border */}
+      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between py-6">
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                Settings
+              </h1>
+              <p className="text-sm text-muted-foreground">Manage your account settings and preferences</p>
             </div>
-            <Button>Save Changes</Button>
+            <Button onClick={saveAllSettings} className="gap-2 shadow-sm">
+              <Check className="h-4 w-4" />
+              Save Changes
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          {/* Tabs */}
-          <Tabs defaultValue="brand" onValueChange={setActiveTab} value={activeTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="brand">Brand</TabsTrigger>
-              <TabsTrigger value="accounts">Accounts</TabsTrigger>
-              <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
-              <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            </TabsList>
+      {/* Main Content with Better Spacing */}
+      <main className="max-w-6xl mx-auto px-6 lg:px-8 py-10">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          {/* Modern Tab Navigation */}
+          <TabsList className="inline-flex h-11 items-center justify-start gap-2 bg-muted/50 p-1.5 rounded-xl border border-border/50 shadow-sm">
+            {/* removed Profile tab */}
+            <TabsTrigger
+              value="privacy"
+              className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Shield className="h-4 w-4" />
+              Privacy & Security
+            </TabsTrigger>
+            <TabsTrigger
+              value="content"
+              className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Settings className="h-4 w-4" />
+              Content
+            </TabsTrigger>
+            <TabsTrigger
+              value="notifications"
+              className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Bell className="h-4 w-4" />
+              Notifications
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Tab Content */}
-            <CardContent className="p-6">
-              {/* Brand Tab */}
-              <TabsContent value="brand" className="space-y-8">
+          {/* removed Profile Tab content */}
+
+          {/* Privacy & Security Tab */}
+          <TabsContent value="privacy" className="space-y-6">
+            <Card className="border-border/50 shadow-sm overflow-hidden">
+              <div className="p-8 space-y-8">
                 <div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">Brand Identity</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Logo Upload */}
-                    <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">Brand Logo</Label>
-                      <div className="flex items-center justify-center h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 cursor-pointer overflow-hidden">
-                        <div className="text-center p-6">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="mx-auto h-12 w-12 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                            />
-                          </svg>
-                          <p className="mt-1 text-sm text-gray-500">Drag and drop your logo or click to upload</p>
-                          <p className="mt-1 text-xs text-gray-400">PNG, JPG, SVG up to 5MB</p>
-                        </div>
-                      </div>
-                    </div>
+                  <h2 className="text-xl font-semibold tracking-tight">Privacy & Security</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Protect your account and control your data</p>
+                </div>
 
-                    {/* Brand Details */}
-                    <div className="space-y-4">
+                {/* Password Section */}
+                <div className="space-y-6 pb-8 border-b border-border/50">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Lock className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 space-y-4">
                       <div>
-                        <Label htmlFor="brandName">Brand Name</Label>
-                        <Input
-                          id="brandName"
-                          value={brandName}
-                          onChange={(e) => setBrandName(e.target.value)}
-                          className="mt-1"
-                        />
+                        <h3 className="text-base font-medium">Change Password</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Update your password regularly to keep your account secure
+                        </p>
                       </div>
+                      <div className="space-y-4 max-w-md">
+                        <div className="space-y-2">
+                          <Label htmlFor="cp" className="text-sm font-medium">
+                            Current Password
+                          </Label>
+                          <Input
+                            id="cp"
+                            type="password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            className="h-11"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="np" className="text-sm font-medium">
+                            New Password
+                          </Label>
+                          <Input
+                            id="np"
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="h-11"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cnp" className="text-sm font-medium">
+                            Confirm New Password
+                          </Label>
+                          <Input
+                            id="cnp"
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="h-11"
+                          />
+                        </div>
+                        <Button className="gap-2">
+                          <Lock className="h-4 w-4" />
+                          Update Password
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
+                {/* Removed 2FA and Privacy Controls sections */}
+
+                {/* Danger Zone */}
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-destructive/10">
+                      <AlertTriangle className="h-5 w-5 text-destructive" />
+                    </div>
+                    <div className="flex-1 space-y-3">
                       <div>
-                        <Label htmlFor="brandDescription">Brand Description</Label>
-                        <Textarea
-                          id="brandDescription"
-                          rows={4}
-                          value={brandDescription}
-                          onChange={(e) => setBrandDescription(e.target.value)}
-                          className="mt-1"
-                        />
+                        <h3 className="text-base font-medium text-destructive">Danger Zone</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Irreversible and destructive actions</p>
                       </div>
+                      <Button variant="destructive" className="gap-2" onClick={() => setIsDeleteOpen(true)}>
+                        <AlertTriangle className="h-4 w-4" />
+                        Delete Account
+                      </Button>
                     </div>
                   </div>
                 </div>
+              </div>
+            </Card>
+          </TabsContent>
 
-                {/* Brand Colors */}
+          {/* Content Preferences Tab */}
+          <TabsContent value="content" className="space-y-6">
+            <Card className="border-border/50 shadow-sm overflow-hidden">
+              <div className="p-8 space-y-8">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Brand Colors</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="primaryColor">Primary Color</Label>
-                      <div className="flex items-center mt-1">
-                        <div
-                          className="w-10 h-10 rounded-md mr-3 border border-gray-300"
-                          style={{ backgroundColor: primaryColor }}
-                        ></div>
-                        <Input
-                          type="color"
-                          id="primaryColor"
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="h-10 w-20 border-none p-0"
-                        />
-                        <Input
-                          type="text"
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="ml-3"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="secondaryColor">Secondary Color</Label>
-                      <div className="flex items-center mt-1">
-                        <div
-                          className="w-10 h-10 rounded-md mr-3 border border-gray-300"
-                          style={{ backgroundColor: secondaryColor }}
-                        ></div>
-                        <Input
-                          type="color"
-                          id="secondaryColor"
-                          value={secondaryColor}
-                          onChange={(e) => setSecondaryColor(e.target.value)}
-                          className="h-10 w-20 border-none p-0"
-                        />
-                        <Input
-                          type="text"
-                          value={secondaryColor}
-                          onChange={(e) => setSecondaryColor(e.target.value)}
-                          className="ml-3"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Manage your default hashtags to use across your content.
+                  </p>
                 </div>
 
-                {/* Brand Tone & Style */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Brand Tone & Style</h3>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h4 className="font-medium text-gray-900 mb-2">Tone</h4>
-                        <div className="space-y-2">
-                          {["Professional", "Friendly", "Casual", "Authoritative", "Playful"].map((tone) => (
-                            <div key={tone} className="flex items-center">
-                              <input
-                                type="radio"
-                                id={tone}
-                                name="tone"
-                                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                              />
-                              <Label htmlFor={tone} className="ml-2 text-sm text-gray-700">
-                                {tone}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h4 className="font-medium text-gray-900 mb-2">Style</h4>
-                        <div className="space-y-2">
-                          {["Minimalist", "Bold", "Elegant", "Modern", "Classic"].map((style) => (
-                            <div key={style} className="flex items-center">
-                              <input
-                                type="radio"
-                                id={style}
-                                name="style"
-                                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                              />
-                              <Label htmlFor={style} className="ml-2 text-sm text-gray-700">
-                                {style}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h4 className="font-medium text-gray-900 mb-2">Personality</h4>
-                        <div className="space-y-2">
-                          {["Innovative", "Trustworthy", "Energetic", "Sophisticated", "Approachable"].map(
-                            (personality) => (
-                              <div key={personality} className="flex items-center">
-                                <Checkbox id={personality} />
-                                <Label htmlFor={personality} className="ml-2 text-sm text-gray-700">
-                                  {personality}
-                                </Label>
-                              </div>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="brandGuidelines">Brand Voice Guidelines</Label>
-                      <Textarea
-                        id="brandGuidelines"
-                        rows={4}
-                        placeholder="Describe how your brand should sound in communications..."
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Connected Accounts Tab */}
-              <TabsContent value="accounts" className="space-y-6">
-                <h2 className="text-lg font-medium text-gray-900">Connected Accounts</h2>
-                <p className="text-sm text-gray-500">
-                  Connect your social media accounts to streamline your brand management.
-                </p>
-
-                <div className="bg-white rounded-lg overflow-hidden">
-                  <ul className="divide-y divide-gray-200">
-                    {[
-                      {
-                        id: "facebook",
-                        name: "Facebook",
-                        icon: <Facebook className="h-4 w-4" />,
-                        color: "bg-blue-600",
-                      },
-                      {
-                        id: "instagram",
-                        name: "Instagram",
-                        icon: <Instagram className="h-4 w-4" />,
-                        color: "bg-pink-600",
-                      },
-                      { id: "twitter", name: "Twitter", icon: <Twitter className="h-4 w-4" />, color: "bg-blue-400" },
-                      {
-                        id: "linkedin",
-                        name: "LinkedIn",
-                        icon: <Linkedin className="h-4 w-4" />,
-                        color: "bg-blue-700",
-                      },
-                      {
-                        id: "pinterest",
-                        name: "Pinterest",
-                        icon: (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="h-4 w-4"
-                          >
-                            <path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
-                            <path d="M21 12c0 4.418 -4.03 8 -9 8a9.863 9.863 0 0 1 -4.255 -.949l-3.745 .949v-3.586a8.955 8.955 0 0 1 -1 -4.414c0 -4.418 4.03 -8 9 -8s9 3.582 9 8z" />
-                          </svg>
-                        ),
-                        color: "bg-red-600",
-                      },
-                    ].map((account) => (
-                      <li key={account.id} className="px-4 py-4 sm:px-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className={`${account.color} text-white p-2 rounded-full`}>{account.icon}</div>
-                            <div className="ml-3">
-                              <p className="text-sm font-medium text-gray-900">{account.name}</p>
-                              <p className="text-xs text-gray-500">
-                                {connectedAccounts[account.id as keyof typeof connectedAccounts]
-                                  ? "Connected"
-                                  : "Not connected"}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center">
-                            <Switch
-                              checked={connectedAccounts[account.id as keyof typeof connectedAccounts]}
-                              onCheckedChange={() => toggleAccount(account.id)}
-                            />
-                            {connectedAccounts[account.id as keyof typeof connectedAccounts] ? (
-                              <Button variant="link" className="ml-4 text-sm text-red-600 hover:text-red-800">
-                                Disconnect
-                              </Button>
-                            ) : (
-                              <Button variant="link" className="ml-4 text-sm text-primary hover:text-primary/80">
-                                Connect
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </TabsContent>
-
-              {/* Hashtags Tab */}
-              <TabsContent value="hashtags" className="space-y-6">
-                <h2 className="text-lg font-medium text-gray-900">Default Hashtags</h2>
-                <p className="text-sm text-gray-500">Manage your default hashtags to use across your content.</p>
-
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1">
+                {/* Add New Hashtag Section */}
+                <div className="space-y-4">
+                  <div className="flex gap-3">
                     <Input
-                      type="text"
                       value={newHashtag}
                       onChange={(e) => setNewHashtag(e.target.value)}
                       placeholder="Add a new hashtag (without #)"
+                      className="h-11 flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          addHashtag()
+                        }
+                      }}
                     />
-                  </div>
-                  <Button onClick={addHashtag}>Add Hashtag</Button>
-                </div>
-
-                <div>
-                  <h3 className="text-md font-medium text-gray-700 mb-3">Your Hashtags</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {hashtags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="outline"
-                        className="bg-gray-100 rounded-full px-3 py-1 text-sm flex items-center"
-                      >
-                        <span className="text-gray-800">#{tag}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="ml-2 h-4 w-4 text-gray-500 hover:text-gray-700"
-                          onClick={() => removeHashtag(tag)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                    {hashtags.length === 0 && <p className="text-sm text-gray-500 italic">No hashtags added yet</p>}
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <h3 className="text-md font-medium text-gray-900 mb-2">Hashtag Groups</h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Create groups of hashtags for different types of content.
-                  </p>
-
-                  <div className="space-y-4">
-                    <div className="bg-white p-3 rounded-md border border-gray-200">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium text-gray-800">Marketing</h4>
-                        <div className="flex space-x-2">
-                          <Button variant="ghost" size="sm" className="text-primary h-8">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="h-4 w-4 mr-1"
-                            >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                            Edit
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-red-600 h-8">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="h-4 w-4 mr-1"
-                            >
-                              <path d="M3 6h18" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              <line x1="10" y1="11" x2="10" y2="17" />
-                              <line x1="14" y1="11" x2="14" y2="17" />
-                            </svg>
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge className="bg-blue-100 text-blue-800 rounded-full px-2 py-1 text-xs">#marketing</Badge>
-                        <Badge className="bg-blue-100 text-blue-800 rounded-full px-2 py-1 text-xs">#digital</Badge>
-                        <Badge className="bg-blue-100 text-blue-800 rounded-full px-2 py-1 text-xs">#strategy</Badge>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-md border border-gray-200">
-                      <div className="flex justify-between items-center mb-2">
-                        <h4 className="font-medium text-gray-800">Product</h4>
-                        <div className="flex space-x-2">
-                          <Button variant="ghost" size="sm" className="text-primary h-8">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="h-4 w-4 mr-1"
-                            >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                            Edit
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-red-600 h-8">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="h-4 w-4 mr-1"
-                            >
-                              <path d="M3 6h18" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              <line x1="10" y1="11" x2="10" y2="17" />
-                              <line x1="14" y1="11" x2="14" y2="17" />
-                            </svg>
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge className="bg-green-100 text-green-800 rounded-full px-2 py-1 text-xs">#product</Badge>
-                        <Badge className="bg-green-100 text-green-800 rounded-full px-2 py-1 text-xs">
-                          #innovation
-                        </Badge>
-                        <Badge className="bg-green-100 text-green-800 rounded-full px-2 py-1 text-xs">#design</Badge>
-                      </div>
-                    </div>
-
-                    <Button variant="outline" className="w-full border-dashed flex items-center justify-center">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create New Hashtag Group
+                    <Button onClick={addHashtag} className="h-11 gap-2 bg-primary hover:bg-primary/90">
+                      Add Hashtag
                     </Button>
                   </div>
                 </div>
-              </TabsContent>
 
-              {/* Notifications Tab */}
-              <TabsContent value="notifications" className="space-y-6">
-                <h2 className="text-lg font-medium text-gray-900">Notification Preferences</h2>
-                <p className="text-sm text-gray-500">Customize how and when you receive notifications.</p>
-
-                <div className="bg-white rounded-lg overflow-hidden">
-                  <div className="border-b border-gray-200 px-4 py-5 sm:px-6">
-                    <h3 className="text-md font-medium text-gray-900">Email Notifications</h3>
-                  </div>
-                  <ul className="divide-y divide-gray-200">
-                    {[
-                      {
-                        id: "accountUpdates",
-                        name: "Account Updates",
-                        description: "Important information about your account",
-                      },
-                      {
-                        id: "marketingNews",
-                        name: "Marketing News",
-                        description: "Tips, trends, and industry updates",
-                      },
-                      { id: "productUpdates", name: "Product Updates", description: "New features and improvements" },
-                    ].map((item) => (
-                      <li key={item.id} className="px-4 py-4 sm:px-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                            <p className="text-xs text-gray-500">{item.description}</p>
-                          </div>
-                          <Switch
-                            checked={notifications.email[item.id as keyof typeof notifications.email]}
-                            onCheckedChange={() => toggleNotification("email", item.id)}
-                          />
-                        </div>
-                      </li>
+                {/* Your Hashtags Section */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium">Your Hashtags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {hashtags.map((tag) => (
+                      <div
+                        key={tag}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted text-sm border border-border"
+                      >
+                        <span>#{tag}</span>
+                        <button
+                          onClick={() => removeHashtag(tag)}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
 
-                <div className="bg-white rounded-lg overflow-hidden">
-                  <div className="border-b border-gray-200 px-4 py-5 sm:px-6">
-                    <h3 className="text-md font-medium text-gray-900">Push Notifications</h3>
-                  </div>
-                  <ul className="divide-y divide-gray-200">
-                    {[
-                      { id: "messageReceived", name: "Messages", description: "When you receive a new message" },
-                      {
-                        id: "engagementActivity",
-                        name: "Engagement Activity",
-                        description: "Likes, comments, and shares on your content",
-                      },
-                      {
-                        id: "scheduledPosts",
-                        name: "Scheduled Posts",
-                        description: "Reminders about your scheduled content",
-                      },
-                    ].map((item) => (
-                      <li key={item.id} className="px-4 py-4 sm:px-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                            <p className="text-xs text-gray-500">{item.description}</p>
-                          </div>
-                          <Switch
-                            checked={notifications.push[item.id as keyof typeof notifications.push]}
-                            onCheckedChange={() => toggleNotification("push", item.id)}
-                          />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="bg-white rounded-lg overflow-hidden">
-                  <div className="border-b border-gray-200 px-4 py-5 sm:px-6">
-                    <h3 className="text-md font-medium text-gray-900">Notification Frequency</h3>
-                  </div>
-                  <div className="px-4 py-5 sm:px-6">
-                    <div className="space-y-4">
-                      {["real-time", "daily", "weekly"].map((frequency) => (
-                        <div key={frequency} className="flex items-center">
-                          <input
-                            type="radio"
-                            id={frequency}
-                            name="frequency"
-                            checked={notifications.frequency === frequency}
-                            onChange={() => handleFrequencyChange(frequency)}
-                            className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                          />
-                          <Label htmlFor={frequency} className="ml-2 text-sm text-gray-700">
-                            {frequency === "real-time"
-                              ? "Real-time (as they happen)"
-                              : frequency === "daily"
-                                ? "Daily digest"
-                                : "Weekly summary"}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-xs text-gray-500">
-                      This setting affects the frequency of all notifications, except for critical account updates.
+                {/* Hashtag Groups Section */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold">Hashtag Groups</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Create groups of hashtags for different types of content.
                     </p>
                   </div>
+
+                  <div className="space-y-3">
+                    {hashtagGroups.map((group) => (
+                      <Card key={group.id} className="p-5 border-border/50">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-3">
+                            <h4 className="font-semibold text-base">{group.name}</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {group.hashtags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center px-2.5 py-1 rounded-md bg-primary/10 text-primary text-sm font-medium"
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openEditGroupDialog(group)}
+                              className="p-2 hover:bg-muted rounded-md transition-colors text-primary"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => removeHashtagGroup(group.id)}
+                              className="p-2 hover:bg-muted rounded-md transition-colors text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <Button
+                    onClick={openCreateGroupDialog}
+                    variant="outline"
+                    className="w-full h-11 gap-2 border-dashed bg-transparent"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create New Hashtag Group
+                  </Button>
                 </div>
-              </TabsContent>
-            </CardContent>
-          </Tabs>
-        </Card>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <Card className="border-border/50 shadow-sm overflow-hidden">
+              <div className="p-8 space-y-8">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight">Notifications</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Manage how you receive updates</p>
+                </div>
+
+                {/* Email Notifications */}
+                <div className="space-y-6 pb-8 border-b border-border/50">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Mail className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 space-y-5">
+                      <div>
+                        <h3 className="text-base font-medium">Email Notifications</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Choose what emails you want to receive</p>
+                      </div>
+                      <div className="space-y-5">
+                        <div className="flex items-center justify-between py-3">
+                          <div className="space-y-0.5 flex-1">
+                            <div className="text-sm font-medium">Post Performance</div>
+                            <div className="text-sm text-muted-foreground">
+                              Get notified when your posts reach milestones
+                            </div>
+                          </div>
+                          <Switch checked={emailPostPerformance} onCheckedChange={setEmailPostPerformance} />
+                        </div>
+                        <div className="flex items-center justify-between py-3 border-t border-border/50">
+                          <div className="space-y-0.5 flex-1">
+                            <div className="text-sm font-medium">Weekly Reports</div>
+                            <div className="text-sm text-muted-foreground">Receive weekly analytics summaries</div>
+                          </div>
+                          <Switch checked={emailWeeklyReports} onCheckedChange={setEmailWeeklyReports} />
+                        </div>
+                        <div className="flex items-center justify-between py-3 border-t border-border/50">
+                          <div className="space-y-0.5 flex-1">
+                            <div className="text-sm font-medium">Marketing Tips</div>
+                            <div className="text-sm text-muted-foreground">
+                              Tips and best practices for social media
+                            </div>
+                          </div>
+                          <Switch checked={emailMarketingTips} onCheckedChange={setEmailMarketingTips} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Push Notifications */}
+                <div className="space-y-6">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Smartphone className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 space-y-5">
+                      <div>
+                        <h3 className="text-base font-medium">Push Notifications</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Manage browser and mobile push notifications</p>
+                      </div>
+                      <div className="space-y-5">
+                        <div className="flex items-center justify-between py-3">
+                          <div className="space-y-0.5 flex-1">
+                            <div className="text-sm font-medium">Post Published</div>
+                            <div className="text-sm text-muted-foreground">
+                              When your scheduled posts go live
+                            </div>
+                          </div>
+                          <Switch checked={pushPostPublished} onCheckedChange={setPushPostPublished} />
+                        </div>
+                        <div className="flex items-center justify-between py-3 border-t border-border/50">
+                          <div className="space-y-0.5 flex-1">
+                            <div className="text-sm font-medium">Engagement Alerts</div>
+                            <div className="text-sm text-muted-foreground">
+                              High engagement on your content
+                            </div>
+                          </div>
+                          <Switch checked={pushEngagementAlerts} onCheckedChange={setPushEngagementAlerts} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
+
+      <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create Hashtag Group</DialogTitle>
+            <DialogDescription>Create a new group of hashtags for your content.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="groupName">Group Name</Label>
+              <Input
+                id="groupName"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="e.g., Marketing, Product, Events"
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Hashtags</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={groupHashtagInput}
+                  onChange={(e) => setGroupHashtagInput(e.target.value)}
+                  placeholder="Add hashtag (without #)"
+                  className="h-11"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addHashtagToGroup()
+                    }
+                  }}
+                />
+                <Button onClick={addHashtagToGroup} className="h-11">
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {groupHashtags.map((tag) => (
+                  <div
+                    key={tag}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-sm font-medium"
+                  >
+                    <span>#{tag}</span>
+                    <button
+                      onClick={() => removeHashtagFromGroup(tag)}
+                      className="hover:text-primary/70 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateGroupOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={createHashtagGroup}>Create Group</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditGroupOpen} onOpenChange={setIsEditGroupOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Hashtag Group</DialogTitle>
+            <DialogDescription>Update your hashtag group details.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="editGroupName">Group Name</Label>
+              <Input
+                id="editGroupName"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="e.g., Marketing, Product, Events"
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Hashtags</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={groupHashtagInput}
+                  onChange={(e) => setGroupHashtagInput(e.target.value)}
+                  placeholder="Add hashtag (without #)"
+                  className="h-11"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addHashtagToGroup()
+                    }
+                  }}
+                />
+                <Button onClick={addHashtagToGroup} className="h-11">
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {groupHashtags.map((tag) => (
+                  <div
+                    key={tag}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-sm font-medium"
+                  >
+                    <span>#{tag}</span>
+                    <button
+                      onClick={() => removeHashtagFromGroup(tag)}
+                      className="hover:text-primary/70 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditGroupOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEditedGroup}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+            <DialogDescription>This action is irreversible. All data will be permanently removed.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/account/delete", { method: "POST" })
+                  if (!res.ok) throw new Error("fail")
+                  setIsDeleteOpen(false)
+                  window.location.href = "/auth/login"
+                } catch {
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

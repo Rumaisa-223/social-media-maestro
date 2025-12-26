@@ -24,6 +24,8 @@ export interface SelectedPlatforms {
   twitter: boolean;
   instagram: boolean;
   linkedin: boolean;
+  bluesky: boolean;
+  mastodon: boolean;
 }
 
 interface OnboardingContextType {
@@ -64,6 +66,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     twitter: false,
     instagram: false,
     linkedin: false,
+    bluesky: false,
+    mastodon: false,
   });
 
   const [accountDetails, setAccountDetails] = useState<

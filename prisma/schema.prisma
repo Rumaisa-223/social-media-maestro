@@ -8,50 +8,222 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  role      Role     @default(USER)
-  isActive  Boolean  @default(true)
-  tokens    Token[]
+  id             String          @id @default(uuid())
+  name           String?
+  email          String?         @unique
+  password       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  contentItems   ContentItem[]
+  oauthEvents    OAuthEvent[]
+  posts          Post[]
+  schedules      Schedule[]
+  scheduledPosts ScheduledPost[]
+  socialAccounts SocialAccount[]
+  socialTokens   SocialToken[]
+  profile        Profile?
+  settings       UserSettings?
+}
+
+model SocialToken {
+  id           String    @id @default(uuid())
+  userId       String
+  platform     String
+  accessToken  String
+  refreshToken String?
+  pageId       String?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, platform])
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  plan      String?
+  avatarUrl String?
+  bio       String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
 }
 
-model Platform {
-  id      String  @id @default(cuid())
-  name    String  @unique               // facebook / twitter / linkedin / youtube
-  scopes  String[]                      // required scopes
-  tokens  Token[]
+model ScheduledPost {
+  id           String   @id @default(uuid())
+  userId       String
+  platform     String
+  content      String
+  imageUrl     String?
+  scheduleDate DateTime
+  repeat       String   @default("none")
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
 }
 
-model Token {
-  id                 String    @id @default(cuid())
-  platformId         String
-  platform           Platform  @relation(fields: [platformId], references: [id])
-  userId             String
-  user               User      @relation(fields: [userId], references: [id])
-  accessToken        String    // encrypted
-  refreshToken       String?   // encrypted
-  expiresAt          DateTime
-  lastRefreshed      DateTime  @default(now())
-  rateLimitRemaining Int?      @default(1000)
-  rateLimitReset     DateTime?
-  isActive           Boolean   @default(true)
-  scopes             String[]
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+model SocialAccount {
+  id              String         @id @default(uuid())
+  userId          String
+  provider        SocialProvider
+  providerUserId  String
+  accessToken     String?
+  refreshToken    String?
+  tokenExpiresAt  DateTime?
+  scope           String?
+  meta            Json?
+  isActive        Boolean        @default(true)
+  lastConnectedAt DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  contentItems    ContentItem[]
+  posts           Post[]
+  schedules       Schedule[]
+  user            User           @relation(fields: [userId], references: [id])
 
-  // ✅ Composite unique constraint (fixes your TypeScript error)
-  @@unique([userId, platformId])
-
-  // ✅ Indexes for faster queries
-  @@index([isActive])
-  @@index([expiresAt])
-  @@index([lastRefreshed])
+  @@unique([userId, provider])
+  @@index([userId, isActive])
 }
 
-enum Role {
-  ADMIN
-  USER
+model ContentItem {
+  id              String         @id @default(cuid())
+  userId          String
+  socialAccountId String?
+  title           String?
+  type            ContentType
+  objectPath      String?
+  previewUrl      String?
+  metadata        Json
+  generatedBy     String?
+  status          ContentStatus  @default(GENERATED)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  socialAccount   SocialAccount? @relation(fields: [socialAccountId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
+  schedules       Schedule[]
+
+  @@index([userId, createdAt])
+}
+
+model Schedule {
+  id              String         @id @default(cuid())
+  userId          String
+  contentItemId   String
+  socialAccountId String
+  scheduledFor    DateTime
+  timezone        String
+  status          ScheduleStatus @default(PENDING)
+  attempts        Int            @default(0)
+  lastError       String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  post            Post?
+  contentItem     ContentItem    @relation(fields: [contentItemId], references: [id])
+  socialAccount   SocialAccount  @relation(fields: [socialAccountId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
+
+  @@index([scheduledFor])
+  @@index([status])
+}
+
+model Post {
+  id              String        @id @default(cuid())
+  scheduleId      String        @unique
+  userId          String
+  socialAccountId String
+  platformPostId  String?
+  mediaUrls       Json?
+  status          PostStatus    @default(PROCESSING)
+  responseMeta    Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  schedule        Schedule      @relation(fields: [scheduleId], references: [id])
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model OAuthEvent {
+  id        String         @id @default(cuid())
+  userId    String
+  provider  SocialProvider
+  event     OAuthEventType
+  details   Json?
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id])
+}
+
+model UserSettings {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  email_account_updates  Boolean  @default(true)
+  email_marketing_news   Boolean  @default(false)
+  email_product_updates  Boolean  @default(true)
+  push_messages          Boolean  @default(true)
+  push_engagement        Boolean  @default(true)
+  push_scheduled_posts   Boolean  @default(true)
+  auto_save_drafts       Boolean  @default(true)
+  add_watermark          Boolean  @default(false)
+  image_optimization     Boolean  @default(true)
+  hashtags               Json?
+  hashtag_groups         Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  user                   User     @relation(fields: [userId], references: [id])
+}
+
+enum SocialProvider {
+  FACEBOOK
+  TWITTER
+  INSTAGRAM
+  LINKEDIN
+  BLUESKY
+  MASTODON
+}
+
+enum ContentType {
+  CAPTION
+  IMAGE
+  VIDEO
+  CAROUSEL
+  STORY
+  TEMPLATE
+  MIXED
+}
+
+enum ContentStatus {
+  DRAFT
+  GENERATED
+  READY
+  PROCESSING
+  FAILED
+  ARCHIVED
+}
+
+enum ScheduleStatus {
+  DRAFT
+  PENDING
+  QUEUED
+  POSTING
+  POSTED
+  FAILED
+  PAUSED
+  CANCELLED
+}
+
+enum PostStatus {
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
+enum OAuthEventType {
+  CONNECT
+  RECONNECT
+  DISCONNECT
+  REFRESH_SUCCESS
+  REFRESH_FAILURE
+  TOKEN_REVOKED
 }

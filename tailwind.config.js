@@ -18,6 +18,13 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        serif: ["var(--font-serif)", "serif"],
+        signature: ["var(--font-signature)", "cursive"],
+        script: ["var(--font-script)", "cursive"],
+        bebas: ["var(--font-bebas)", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

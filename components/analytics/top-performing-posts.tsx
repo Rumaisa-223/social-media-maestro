@@ -2,50 +2,39 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Heart, Instagram, Linkedin, MessageCircle } from "lucide-react"
+import { Heart, Instagram, Linkedin, MessageCircle, Facebook, Twitter } from "lucide-react"
+import { useEffect, useState } from "react"
 
 export function TopPerformingPosts() {
-  const posts = [
-    {
-      id: 1,
-      platform: "Instagram",
-      platformIcon: Instagram,
-      platformColor: "text-pink-600",
-      image: "/placeholder.svg?height=300&width=400",
-      title:
-        "Monday motivation: Finding your productivity sweet spot in a remote work environment. What's your favorite productivity hack? #WorkFromHome",
-      likes: "8,742",
-      comments: "346",
-      date: "April 20, 2025",
-      engagement: "2.1x",
-    },
-    {
-      id: 2,
-      platform: "LinkedIn",
-      platformIcon: Linkedin,
-      platformColor: "text-blue-700",
-      image: "/placeholder.svg?height=300&width=400",
-      title:
-        "Excited to announce our new partnership with TechSolutions Inc! Together we'll be revolutionizing how teams collaborate. What partnerships have transformed your business?",
-      likes: "5,128",
-      comments: "283",
-      date: "April 18, 2025",
-      engagement: "1.8x",
-    },
-    {
-      id: 3,
-      platform: "Instagram",
-      platformIcon: Instagram,
-      platformColor: "text-pink-600",
-      image: "/placeholder.svg?height=300&width=400",
-      title:
-        "Behind the scenes at our spring collection photoshoot! Which look is your favorite? Comment below! #SpringFashion #NewCollection",
-      likes: "7,463",
-      comments: "512",
-      date: "April 15, 2025",
-      engagement: "1.9x",
-    },
-  ]
+  const [posts, setPosts] = useState<any[]>([])
+  useEffect(() => {
+    let mounted = true
+    fetch("/api/analytics").then(async (r) => {
+      const data = await r.json()
+      if (!mounted) return
+      const iconMap: Record<string, any> = {
+        Instagram, LinkedIn: Linkedin, Facebook, Twitter, Bluesky: Twitter, Mastodon: Twitter,
+      }
+      const colorMap: Record<string, string> = {
+        Instagram: "text-pink-600", LinkedIn: "text-blue-700", Facebook: "text-blue-600", Twitter: "text-blue-400", Bluesky: "text-blue-400", Mastodon: "text-green-600",
+      }
+      const tp = Array.isArray(data?.topPosts) ? data.topPosts : []
+      const mapped = tp.map((p: any, idx: number) => ({
+        id: idx + 1,
+        platform: String(p.platform || "Post"),
+        platformIcon: iconMap[p.platform] || Instagram,
+        platformColor: colorMap[p.platform] || "text-gray-600",
+        image: "/placeholder.svg?height=300&width=400",
+        title: String(p.title || ""),
+        likes: String(Intl.NumberFormat().format(Number(p.likes || 0))),
+        comments: String(Intl.NumberFormat().format(Number(p.comments || 0))),
+        date: new Date(String(p.date || Date.now())).toLocaleDateString(),
+        engagement: `${(Number(p.multiplier || 1)).toFixed(1)}x`,
+      }))
+      setPosts(mapped)
+    }).catch(() => {})
+    return () => { mounted = false }
+  }, [])
 
   return (
     <Card>

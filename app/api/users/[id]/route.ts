@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import prisma from "@/lib/prisma"
 
-export async function PATCH(req: NextRequest, context: any) {
-  const { id } = context.params // ✅ avoid Next.js 15 type bug
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> | { id: string } },
+) {
+  const { id } = "then" in context.params ? await context.params : context.params
   try {
     const body = await req.json()
     const user = await prisma.user.update({
