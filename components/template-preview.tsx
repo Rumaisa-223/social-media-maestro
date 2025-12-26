@@ -99,6 +99,72 @@ export default function TemplatePreview({ template, className = "" }: TemplatePr
           </div>
         )
 
+      case "product_launch":
+        return (
+          <div className="relative w-full h-full bg-[#E8DCC8] overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-0 left-0 w-[300px] h-[600px] bg-gradient-to-br from-black/40 to-transparent rotate-[-15deg] -translate-x-20 -translate-y-32 blur-sm" />
+              <div className="absolute top-32 left-0 w-[250px] h-[500px] bg-gradient-to-br from-black/50 to-transparent rotate-[-15deg] -translate-x-16 blur-sm" />
+              <div className="absolute top-64 left-0 w-[200px] h-[400px] bg-gradient-to-br from-black/45 to-transparent rotate-[-15deg] -translate-x-12 blur-sm" />
+            </div>
+
+            <div className="absolute top-16 left-16 z-10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-10 bg-white rounded-md flex items-center justify-center">
+                  <div className="w-4 h-6 bg-[#E8DCC8] rounded-full" />
+                </div>
+                <span className="text-white text-3xl font-semibold tracking-tight">{data.subtitle || "BlasedCare"}</span>
+              </div>
+            </div>
+
+            <div className="absolute bottom-1/3 left-16 z-10">
+              <h1 className="text-white">
+                <div className="text-7xl font-normal leading-tight">{(data.title || "Launching 12.08.").includes("Launching") ? "Launching" : data.title}</div>
+                <div className="text-8xl font-bold leading-tight">{(data.title || "Launching 12.08.").replace(/.*Launching\s*/i, "") || "12.08."}</div>
+              </h1>
+            </div>
+
+            <div className="absolute right-20 top-1/2 -translate-y-1/2 w-[400px] h-[600px]">
+              <div className="relative w-full h-full">
+                <div className="absolute inset-0 bg-gradient-to-br from-black/30 to-transparent -translate-x-32 -translate-y-8 blur-2xl" />
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[280px] h-[500px]">
+                  <div className="relative w-full h-full">
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-[420px] bg-gradient-to-b from-amber-800 to-amber-900 rounded-lg">
+                      <div className="absolute right-4 top-20 w-6 h-40 bg-white/20 blur-sm rounded-full" />
+                    </div>
+                    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-28 h-56 bg-gradient-to-b from-stone-100 to-stone-200 rounded-sm shadow-lg">
+                      <div className="p-3 text-[6px] leading-tight text-stone-800">
+                        <div className="font-semibold mb-1 text-[8px]">Gentle Black Deep Cleanser</div>
+                        <div className="space-y-0.5 opacity-70">
+                          <p>Deep Cleansing Gel formulated</p>
+                          <p>With Centenary Black Beans</p>
+                          <p>to deeply cleanse and purify</p>
+                          <p>the skin while maintaining</p>
+                          <p>a creamy moisture film to</p>
+                          <p>discourage over-drying</p>
+                        </div>
+                        <div className="mt-4 space-y-0.5 text-[5px]">
+                          <p>• Deep Cleansing</p>
+                          <p>• Black Centenary Beans</p>
+                        </div>
+                        <div className="absolute bottom-2 right-2 text-[6px] opacity-60">180 mL e6.08 oz</div>
+                      </div>
+                    </div>
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-20">
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-8 bg-zinc-900 rounded-t-md" />
+                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-6 h-8 bg-zinc-800" />
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-10 bg-zinc-900 rounded-t-lg">
+                        <div className="absolute -top-1 left-2 w-8 h-4 bg-zinc-900 rounded-full -rotate-12" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute inset-0 opacity-[0.35]" style={{backgroundImage:"radial-gradient(#0000000a 1px, transparent 1px)", backgroundSize:"6px 6px"}} />
+          </div>
+        )
       case "minimal":
         return (
           <div className={`${data.format === "horizontal" ? "flex items-center gap-6" : "text-center"} space-y-3`}>
@@ -507,6 +573,30 @@ export default function TemplatePreview({ template, className = "" }: TemplatePr
           </div>
         )
 
+      case "brand_builder":
+        return (
+          <div className="relative w-full h-full">
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${data.imageUrl})` }} />
+            <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-black/80 to-black/20" />
+            <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black/80 to-black/20" />
+
+            <div className="absolute top-5 left-5 text-white text-sm tracking-wide">{data.cta}</div>
+            <div className="absolute top-5 right-5 text-white text-sm tracking-wide">{data.subtext}</div>
+
+            <div className="absolute top-16 left-5 right-5">
+              <div className={`${playfair.className} text-white text-[52px] leading-none`}>{data.title}</div>
+              <div className={`${inter.className} mt-2 text-white font-black text-[40px] leading-none`}>{data.subtitle}</div>
+            </div>
+
+            {data.footer && (
+              <div className="absolute bottom-12 left-0 right-0 flex justify-center">
+                <div className={`${inter.className} select-none text-xs font-bold tracking-[0.5em] uppercase opacity-20 text-white`}>
+                  {data.footer}
+                </div>
+              </div>
+            )}
+          </div>
+        )
       default:
         return (
           <div

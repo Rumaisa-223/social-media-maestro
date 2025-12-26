@@ -396,6 +396,39 @@ export default function AdvancedTemplateEditor({ template, onSave, onClose }: Ad
     }
 
     // Render different layouts based on template type
+    if (data.layout === "brand_builder") {
+      return (
+        <div
+          className={`${getContainerClass()} relative overflow-hidden rounded-lg`}
+          style={{
+            backgroundImage: `url(${data.imageUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-black/80 to-black/20" />
+          <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black/80 to-black/20" />
+
+          <div className="absolute top-5 left-5 text-white text-sm tracking-wide">{data.cta}</div>
+          <div className="absolute top-5 right-5 text-white text-sm tracking-wide">{data.subtext}</div>
+
+          <div className="absolute top-16 left-5 right-5">
+            <div className={`${playfair.className} text-white text-[52px] leading-none`}>{data.title}</div>
+            <div className={`${inter.className} mt-2 text-white font-black text-[40px] leading-none`}>{data.subtitle}</div>
+          </div>
+
+          {data.footer && (
+            <div className="absolute bottom-12 left-0 right-0 flex justify-center">
+              <div className={`${inter.className} select-none text-xs font-bold tracking-[0.5em] uppercase opacity-20 text-white`}>
+                {data.footer}
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+>>>>>>> 644a1bb3dd3c79d515dad79691fce5c840ea36ab
     if (data.layout === "poster" || data.layout === "sale") {
       return (
         <div
@@ -836,16 +869,25 @@ export default function AdvancedTemplateEditor({ template, onSave, onClose }: Ad
                     </div>
 
                     <div>
-                      <Label className="text-xs">Call to Action</Label>
-                      <Input
-                        value={editedTemplate.data.cta || ""}
-                        onChange={(e) => updateTemplate({ cta: e.target.value })}
-                        placeholder="Enter CTA"
-                        className="text-xs mt-1"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                  <Label className="text-xs">Call to Action</Label>
+                  <Input
+                    value={editedTemplate.data.cta || ""}
+                    onChange={(e) => updateTemplate({ cta: e.target.value })}
+                    placeholder="Enter CTA"
+                    className="text-xs mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Footer</Label>
+                  <Input
+                    value={editedTemplate.data.footer || ""}
+                    onChange={(e) => updateTemplate({ footer: e.target.value })}
+                    placeholder="Enter footer"
+                    className="text-xs mt-1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
                 <Card>
                   <CardHeader className="pb-2">

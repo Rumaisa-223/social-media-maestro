@@ -14,7 +14,7 @@ export interface Template {
     subtext?: string;
     imageUrl: string;
     colorScheme: string;
-    layout: "classic" | "modern" | "minimal" | "creative" | "poster" | "sale" | "logo";
+    layout: "classic" | "modern" | "minimal" | "creative" | "poster" | "sale" | "logo" | "product_launch" | "brand_builder";
     format: "classic" | "square" | "vertical" | "horizontal";
     style?: "modern" | "vintage" | "playful" | "elegant" | "bold" | "minimal";
     textColor?: string;
@@ -29,6 +29,7 @@ export interface Template {
     fontWeight?: string;
     alignment?: "left" | "center" | "right";
     spacing?: number;
+    footer?: string;
   };
   tags: string[];
 }
@@ -341,6 +342,37 @@ export const templateDataset: Template[] = [
       spacing: 12,
     },
     tags: ["boutique", "fashion", "serif", "playfair", "pink", "logo"],
+  },
+  {
+    id: "coffee-shop-brand-builder",
+    name: "Coffee Shop Brand Builder",
+    category: "Retail",
+    description: "Dark gradient top/bottom over coffee machine photo with large serif title and bold subtitle",
+    data: {
+      title: "Coffee Shop",
+      subtitle: "Brand Builder",
+      cta: "Kittl FLOWS",
+      subtext: "Nano Banana Pro",
+      imageUrl:
+        "https://image.pollinations.ai/prompt/close-up%20espresso%20pouring%20into%20paper%20cup%20coffee%20machine%20barista%20hands%20moody%20lighting?width=800&height=800&seed=coffee_brand",
+      colorScheme: "beige",
+      layout: "brand_builder",
+      format: "square",
+      style: "elegant",
+      textColor: "#ffffff",
+      backgroundColor: "#000000",
+      overlayOpacity: 0.8,
+      borderRadius: 0,
+      shadow: false,
+      fontFamily: "serif",
+      titleFontFamily: "Playfair Display, serif",
+      subtitleFontFamily: "Inter, Helvetica, Arial, sans-serif",
+      fontSize: "large",
+      fontWeight: "700",
+      alignment: "center",
+      spacing: 12,
+    },
+    tags: ["square", "instagram", "coffee", "brand", "builder", "poster"],
   },
 ];
 
