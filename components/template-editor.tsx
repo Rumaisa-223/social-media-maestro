@@ -428,7 +428,6 @@ export default function AdvancedTemplateEditor({ template, onSave, onClose }: Ad
       )
     }
 
->>>>>>> 644a1bb3dd3c79d515dad79691fce5c840ea36ab
     if (data.layout === "poster" || data.layout === "sale") {
       return (
         <div
